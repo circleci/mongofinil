@@ -10,23 +10,24 @@
 
 (defn all-validators [validators fields]
   (->> fields
+       inspect
        (map :validators)
-       (filter identity)
-       (concat validators)))
+       inspect
+                                        ;       (filter identity)
+       inspect
+;       (concat validators)
+       ))
 
+(defn create-row-functions [ns collection validators]
+;  (intern ns 'valid? (fn [row] (mv/valid? validators row)))
+;  (intern ns 'validate! (fn [row] (mv/validate! validators row)))
+;  (intern ns 'find-by-id (fn [id] (congo/fetch-by-id collection id)))
+;  (intern ns 'nu (fn [& {:as args}] ((ns-resolve ns 'validate!) args) args))
 
-(defn create-row-functions [namespace collection validators]
-  (with-ns/with-ns namespace
-    (declare valid? validate! find-by-id new create!)
-
-    (let [collection# ~collection
-          validators# ~validators]
-      (defn valid? [row#] (mv/valid? validators# row#))
-      (defn validate! [row#] (mv/validate! validators# row#))
-      (defn find-by-id [id#] (congo/fetch-by-id collection# id#))
-      (defn nu [& {:as args#}] (~'validate! args#) args#)
-      (defn create! [& {:as args#}] (->> args# ~'nu (congo/insert! collection#)))
-      )))
+  ;; (intern ns 'create! (fn [& {:as args}] (->> args
+  ;;                                            (ns-resolve ns 'nu)
+  ;;                                            (congo/insert! collection))))
+  )
 
 (defn canonicalize-field
   "Validate field definitions"
@@ -35,14 +36,10 @@
   (throw-if-not name)
   (merge {:required false :findable false :default nil :validators []} args))
 
-(defn format-fn-name [pattern name]
-  (symbol (format pattern (clojure.core/name name))))
-
 (defn i [ns format-str name f]
-  (let [n (format-fn-name format-str name)]
-    (println "intern " ns )
+  (let [n (symbol (format format-str (clojure.core/name name)))]
     (ns-unmap ns n)
-    (intern ns (format-fn-name format-str name) f)))
+    (intern ns n f)))
 
 ;; TODO default, and required
 (defn create-col-function [ns collection field]
@@ -53,18 +50,8 @@
            (congo/fetch-one collection :where {(keyword name) val})))
       (i ns "get-by-%s!" name
          (fn [val]
-           (throw-if-not (inspect (congo/fetch-one collection :where {(keyword name) val}))
+           (throw-if-not  (congo/fetch-one collection :where {(keyword name) val})
                          "Couldn't find row with %s=%s on collection %s" name val collection))))))
-
-
-;; (when findable
-  ;;   (defn (format-fn-name "get-by-%s" name#)
-  ;;     [val] (congo/fetch-one ~collection
-  ;;                            :where {(keyword name#) val}))
-
-  ;;   (defn (format-fn-name  name#) [val]
-  ;;     (assert!
-  ;;      (~(format-fn-name  name#) val))))
 
 
 (defn create-col-functions [namespace collection fields]
@@ -75,45 +62,11 @@
   [collection & {:keys [validators fields]
                  :or {validators [] fields []}}]
   (let [fields (into [] (map canonicalize-field fields))
-;        vs (all-validators validators fields)
+        vs (all-validators validators fields)
         ]
     `(do
-
-       ;;       (create-row-functions vs)
-       (create-col-functions *ns* ~collection ~fields)
-       )))
+       (create-row-functions *ns* ~collection ~vs)
+       (create-col-functions *ns* ~collection ~fields))))
 
 
 (defn defapi [&args])
-
-
-
-;; Everything defaults to nil
-;; (create-mapping build
-;;   (db-field :vcs_url)
-;;   (db-field :vcs_revision)
-;;   (db-field :build_num)
-;;   (db-field :start_time)
-;;   (db-field :stop_time)
-;;   (db-field :infrastructure_fail)
-;;   (db-field :timedout)
-;;   (db-field :why)
-
-;;   (db-field :failed)
-;;   (db-field :parents)
-;;   (db-field :subject)
-;;   (db-field :body)
-;;   (db-field :branch)
-
-;;   (db-field :committer_name)
-;;   (db-field :committer_email)
-;;   (db-field :committer_date)
-;;   (db-field :author_email)
-;;   (db-field :author_name)
-;;   (db-field :author_date)
-
-;;  has_many :action_logs, :inverse_of => :thebuild
-
-;;  belongs_to :user ;  # who started the build, can be null
-;;  belongs_to :project
-;; )
