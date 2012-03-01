@@ -10,23 +10,21 @@
 
 (defn all-validators [validators fields]
   (->> fields
-       inspect
-       (map :validators)
-       inspect
-                                        ;       (filter identity)
-       inspect
-;       (concat validators)
+       (map :validator)
+       (into [])
+       (filter identity)
+       (concat validators)
        ))
 
 (defn create-row-functions [ns collection validators]
-;  (intern ns 'valid? (fn [row] (mv/valid? validators row)))
-;  (intern ns 'validate! (fn [row] (mv/validate! validators row)))
-;  (intern ns 'find-by-id (fn [id] (congo/fetch-by-id collection id)))
-;  (intern ns 'nu (fn [& {:as args}] ((ns-resolve ns 'validate!) args) args))
+  (intern ns 'valid? (fn [row] (mv/valid? validators row)))
+  (intern ns 'validate! (fn [row] (mv/validate! validators row)))
+  (intern ns 'find-by-id (fn [id] (congo/fetch-by-id collection id)))
+  (intern ns 'nu (fn [& {:as args}] ((ns-resolve ns 'validate!) args) args))
 
-  ;; (intern ns 'create! (fn [& {:as args}] (->> args
-  ;;                                            (ns-resolve ns 'nu)
-  ;;                                            (congo/insert! collection))))
+  (intern ns 'create! (fn [& {:as args}] (->> args
+                                             (ns-resolve ns 'nu)
+                                             (congo/insert! collection))))
   )
 
 (defn canonicalize-field
