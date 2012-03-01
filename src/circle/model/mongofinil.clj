@@ -1,12 +1,13 @@
 (ns circle.model.mongofinil
-  "A Mongoid-like library that lets you focus on the important stuff
-  (:use [clojure.contrib.except :only (throw-if-not)])"
+  "A Mongoid-like library that lets you focus on the important stuff"
+  (:require [clojure.contrib.with-ns :as with-ns])
+  (:require [clj-time.coerce :as coerce-time])
+  (:require [somnium.congomongo :as congo])
+
   (:use [circle.util.except :only (assert! throw-if-not)])
   (:use [circle.util.mongo :only (coerce-object-id)])
-  (:require [clojure.contrib.with-ns :as with-ns])
   (:require [circle.util.model-validation :as mv])
-  (:require [circle.util.model-validation-helpers :as mvh])
-  (:require [somnium.congomongo :as congo]))
+  (:require [circle.util.model-validation-helpers :as mvh]))
 
 
 (defn all-validators [validators fields]
@@ -17,18 +18,64 @@
        (concat validators)
        ))
 
-(defn create-row-functions [ns collection validators]
-  (intern ns 'valid? (fn [row] (mv/valid? validators row)))
-  (intern ns 'validate! (fn [row] (mv/validate! validators row)))
-  (intern ns 'find (fn [id] (congo/fetch-by-id collection (coerce-object-id id))))
-  (intern ns 'nu (fn [& {:as args}] ((ns-resolve ns 'validate!) args) args))
+(defn to-id
+  "Given a string, ObjectId or hash, return the appropriate ObjectId"
+  [id]
+  (cond
+   (instance? String id) (congo/object-id id)
+   (instance? org.bson.types.ObjectId id) id
+   :else (:_id id)))
 
-  (intern ns 'create! (fn [& {:as args}] (->> args
-                                             (ns-resolve ns 'nu)
-                                             (congo/insert! collection))))
-  (intern ns 'set-fields! (fn [row & {:as args}]
-                            (let [id (:_id row)]
+(defn canonicalize-output
+  [hash]
+  (doseq [[k v] hash]
+    [k
+     (cond
+      (instance? java.util.Date v) (coerce-time/to-date-time v)
+      :else v)]))
+
+(defn create-row-functions [ns collection validators defaults]
+  (ns-unmap ns 'valid?)
+  (intern ns 'valid? (fn [row]
+                       (mv/valid? validators row)))
+
+  (ns-unmap ns 'validate!)
+  (intern ns 'validate! (fn [row]
+                          (mv/validate! validators row)))
+
+  (ns-unmap ns 'find)
+  (intern ns 'find (fn [id]
+                     (let [id (to-id id)]
+                       (canonicalize-output
+                        (congo/fetch-by-id collection)))))
+
+  (ns-unmap ns 'find-one)
+  (intern ns 'find-one (fn [id & args]
+                         (canonicalize-output
+                          (apply congo/fetch-one collection args))))
+
+  (ns-unmap ns 'nu)
+  (intern ns 'nu
+          (fn [& {:as vals}] (let [vals (merge defaults vals)
+                                  validate! (ns-resolve ns 'validate!)]
+                              (validate! vals)
+                              vals)))
+  (ns-unmap ns 'create!)
+  (intern ns 'create! (fn [& args]
+                        (let [nu (ns-resolve ns 'nu)
+                              vals (apply nu args)]
+                          (congo/insert! collection vals))))
+
+  (ns-unmap ns 'set-fields!)
+  (intern ns 'set-fields! (fn [first & {:as args}]
+                            (let [id (to-id first)]
                               (congo/fetch-and-modify collection {:_id id} {:$set args})))))
+
+(defn row-defaults
+  "Returns a map of default values, including nil for values with no default"
+  [field-defs]
+  (into {} (map (fn [f] [(:default f) (:name f)]) field-defs)))
+
 
 (defn canonicalize-field
   "Validate field definitions"
@@ -47,12 +94,13 @@
   (let [{:keys [findable default validators name required]} field]
     (when findable
       (i ns "find-by-%s" name
-         (fn [val]
-           (congo/fetch-one collection :where {(keyword name) val})))
+         (fn [val & args]
+           (apply congo/fetch-one collection :where {(keyword name) val} args)))
       (i ns "find-by-%s!" name
-         (fn [val]
-           (throw-if-not  (congo/fetch-one collection :where {(keyword name) val})
-                         "Couldn't find row with %s=%s on collection %s" name val collection))))))
+         (fn [val & args]
+           (throw-if-not
+            (apply congo/fetch-one collection :where {(keyword name) val} args)
+            "Couldn't find row with %s=%s on collection %s" name val collection))))))
 
 
 (defn create-col-functions [namespace collection fields]
@@ -63,10 +111,10 @@
   [collection & {:keys [validators fields]
                  :or {validators [] fields []}}]
   (let [fields (into [] (map canonicalize-field fields))
-        vs (all-validators validators fields)
-        ]
+        defaults (row-defaults fields)
+        vs (all-validators validators fields)]
     `(do
-       (create-row-functions *ns* ~collection ~vs)
+       (create-row-functions *ns* ~collection ~vs ~defaults)
        (create-col-functions *ns* ~collection ~fields))))
 
 
