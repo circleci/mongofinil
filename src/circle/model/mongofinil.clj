@@ -25,7 +25,10 @@
 
   (intern ns 'create! (fn [& {:as args}] (->> args
                                              (ns-resolve ns 'nu)
-                                             (congo/insert! collection)))))
+                                             (congo/insert! collection))))
+  (intern ns 'set-fields! (fn [row & {:as args}]
+                            (let [id (:_id row)]
+                              (congo/fetch-and-modify collection {:_id id} {:$set args})))))
 
 (defn canonicalize-field
   "Validate field definitions"
