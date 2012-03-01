@@ -2,6 +2,7 @@
   "A Mongoid-like library that lets you focus on the important stuff
   (:use [clojure.contrib.except :only (throw-if-not)])"
   (:use [circle.util.except :only (assert! throw-if-not)])
+  (:use [circle.util.mongo :only (coerce-object-id)])
   (:require [clojure.contrib.with-ns :as with-ns])
   (:require [circle.util.model-validation :as mv])
   (:require [circle.util.model-validation-helpers :as mvh])
@@ -19,13 +20,12 @@
 (defn create-row-functions [ns collection validators]
   (intern ns 'valid? (fn [row] (mv/valid? validators row)))
   (intern ns 'validate! (fn [row] (mv/validate! validators row)))
-  (intern ns 'find-by-id (fn [id] (congo/fetch-by-id collection id)))
+  (intern ns 'find (fn [id] (congo/fetch-by-id collection (coerce-object-id id))))
   (intern ns 'nu (fn [& {:as args}] ((ns-resolve ns 'validate!) args) args))
 
   (intern ns 'create! (fn [& {:as args}] (->> args
                                              (ns-resolve ns 'nu)
-                                             (congo/insert! collection))))
-  )
+                                             (congo/insert! collection)))))
 
 (defn canonicalize-field
   "Validate field definitions"
@@ -43,10 +43,10 @@
 (defn create-col-function [ns collection field]
   (let [{:keys [findable default validators name required]} field]
     (when findable
-      (i ns "get-by-%s" name
+      (i ns "find-by-%s" name
          (fn [val]
            (congo/fetch-one collection :where {(keyword name) val})))
-      (i ns "get-by-%s!" name
+      (i ns "find-by-%s!" name
          (fn [val]
            (throw-if-not  (congo/fetch-one collection :where {(keyword name) val})
                          "Couldn't find row with %s=%s on collection %s" name val collection))))))
