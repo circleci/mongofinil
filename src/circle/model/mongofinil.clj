@@ -36,22 +36,35 @@
   (merge {:required false :findable false :default nil :validators []} args))
 
 (defn format-fn-name [pattern name]
-  (symbol (format pattern name)))
+  (symbol (format pattern (clojure.core/name name))))
 
+(defn i [ns format-str name f]
+  (let [n (format-fn-name format-str name)]
+    (println "intern " ns )
+    (ns-unmap ns n)
+    (intern ns (format-fn-name format-str name) f)))
 
 ;; TODO default, and required
-(defn create-col-function [namespace collection field]
-  (with-ns/with-ns namespace
-    (let [{:keys [findable default validators name required]} field]
-      (when findable
-        (defn (format-fn-name "get-by-%s" name#)
-          [val] (congo/fetch-one ~collection
-                                 :where {(keyword name#) val}))
+(defn create-col-function [ns collection field]
+  (let [{:keys [findable default validators name required]} field]
+    (when findable
+      (i ns "get-by-%s" name
+         (fn [val]
+           (congo/fetch-one collection :where {(keyword name) val})))
+      (i ns "get-by-%s!" name
+         (fn [val]
+           (throw-if-not (inspect (congo/fetch-one collection :where {(keyword name) val}))
+                         "Couldn't find row with %s=%s on collection %s" name val collection))))))
 
-        (defn (format-fn-name "get-by-%s!" name#) [val]
-          (assert!
-           (~(format-fn-name "get-by-%s" name#) val)))))))
 
+;; (when findable
+  ;;   (defn (format-fn-name "get-by-%s" name#)
+  ;;     [val] (congo/fetch-one ~collection
+  ;;                            :where {(keyword name#) val}))
+
+  ;;   (defn (format-fn-name  name#) [val]
+  ;;     (assert!
+  ;;      (~(format-fn-name  name#) val))))
 
 
 (defn create-col-functions [namespace collection fields]
@@ -67,7 +80,7 @@
     `(do
 
        ;;       (create-row-functions vs)
-       (create-col-functions ~*ns* ~collection ~fields)
+       (create-col-functions *ns* ~collection ~fields)
        )))
 
 
