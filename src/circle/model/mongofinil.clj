@@ -1,7 +1,11 @@
 (ns circle.model.mongofinil
   "A Mongoid-like library that lets you focus on the important stuff
   (:use [clojure.contrib.except :only (throw-if-not)])"
-  (:use [circle.util.except :only (assert! throw-if-not)]))
+  (:use [circle.util.except :only (assert! throw-if-not)])
+  (:require [clojure.contrib.with-ns :as with-ns])
+  (:require [circle.util.model-validation :as mv])
+  (:require [circle.util.model-validation-helpers :as mvh])
+  (:require [somnium.congomongo :as congo]))
 
 
 (defn all-validators [validators fields]
@@ -11,18 +15,18 @@
        (concat validators)))
 
 
-(defmacro create-row-functions [collection validators]
-  `(do
-     (declare ~'valid? ~'validate! ~'find-by-id ~'new ~'create!)
+(defn create-row-functions [namespace collection validators]
+  (with-ns/with-ns namespace
+    (declare valid? validate! find-by-id new create!)
 
-     (let [collection# ~collection
-           validators# ~validators]
-       (defn ~'valid? [row#] (mv/valid? validators# row#))
-       (defn ~'validate! [row#] (mv/validate! validators# row#))
-       (defn ~'find-by-id [id#] (congo/fetch-by-id collection# id#))
-       (defn ~'nu [& {:as args#}] (~'validate! args#) args#)
-       (defn ~'create! [& {:as args#}] (->> args# ~'nu (congo/insert! collection#)))
-       )))
+    (let [collection# ~collection
+          validators# ~validators]
+      (defn valid? [row#] (mv/valid? validators# row#))
+      (defn validate! [row#] (mv/validate! validators# row#))
+      (defn find-by-id [id#] (congo/fetch-by-id collection# id#))
+      (defn nu [& {:as args#}] (~'validate! args#) args#)
+      (defn create! [& {:as args#}] (->> args# ~'nu (congo/insert! collection#)))
+      )))
 
 (defn canonicalize-field
   "Validate field definitions"
@@ -36,27 +40,22 @@
 
 
 ;; TODO default, and required
-(defmacro create-col-function [collection field]
-   `(do
-      (let [{findable# :findable
-             default# :default
-             validators# :validators
-             name# :name
-             required# :required} ~field]
+(defn create-col-function [namespace collection field]
+  (with-ns/with-ns namespace
+    (let [{:keys [findable default validators name required]} field]
+      (when findable
+        (defn (format-fn-name "get-by-%s" name#)
+          [val] (congo/fetch-one ~collection
+                                 :where {(keyword name#) val}))
 
-        (when findable#
-          (defn ~(format-fn-name "get-by-%s" name#)
-            [val] (congo/fetch-one ~collection
-                                   :where {(keyword name#) val}))
-
-          (defn ~(format-fn-name "get-by-%s!" name#) [val]
-            (assert!
-             (~(format-fn-name "get-by-%s" name#) val)))))))
+        (defn (format-fn-name "get-by-%s!" name#) [val]
+          (assert!
+           (~(format-fn-name "get-by-%s" name#) val)))))))
 
 
 
-(defmacro create-col-functions [collection fields]
-  `(doall (map #(create-col-function ~collection %) ~fields)))
+(defn create-col-functions [namespace collection fields]
+  (doall (map #(create-col-function namespace collection %) fields)))
 
 (defmacro defmodel
   "Define a DB model from its fields"
@@ -66,13 +65,9 @@
 ;        vs (all-validators validators fields)
         ]
     `(do
-       (require '[circle.util.model-validation :as mv])
-       (require '[circle.util.model-validation-helpers :as mvh])
-
-       (require '[somnium.congomongo :as congo])
 
        ;;       (create-row-functions vs)
-       (create-col-functions ~collection ~fields)
+       (create-col-functions ~*ns* ~collection ~fields)
        )))
 
 
