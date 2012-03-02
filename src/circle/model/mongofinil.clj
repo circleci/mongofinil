@@ -38,13 +38,24 @@
   (->> fields
        (map :validator)
        (filter identity)
-       ;; require validator
+
+       ;; validator for the require attribute
        (into [(mvh/require-keys (map :name (filter :required fields)))])))
 
+(defn apply-defaults
+  "Given an object, fill in the missing fields with their defaults"
+  [defaults values]
+  (-> (into {} (for [[k v] defaults]
+                  (cond
+                   (contains? k values) [k (-> values k)]
+                   (fn? v) [k (v values)]
+                   :else [k v])))
+      (merge values)))
 
-(defn create-row-functions [ns collection row-validators field-defs]
-  (let [validators (into row-validators (col-validators field-defs))
-        defaults  (into {} (map (fn [f] [(:name f) (:default f)]) field-defs))]
+
+
+(defn create-row-functions [ns collection row-validators field-defs defaults]
+  (let [validators (into row-validators (col-validators field-defs))]
 
     (reintern ns 'valid?
               (fn [row]
@@ -57,17 +68,20 @@
     (reintern ns 'find
               (fn [id]
                 (let [id (to-id id)]
-                  (canonicalize-output
-                   (congo/fetch-by-id collection)))))
+                  (->> (congo/fetch-by-id collection id)
+                       (apply-defaults defaults)
+                       (canonicalize-output)))))
 
     (reintern ns 'find-one
               (fn [args]
-                (canonicalize-output
-                 (apply congo/fetch-one collection args))))
+                (->> args
+                     (apply congo/fetch-one collection)
+                     (apply-defaults defaults)
+                     (canonicalize-output))))
 
     (reintern ns 'nu
               (fn [& {:as vals}]
-                (let [vals (merge defaults vals)
+                (let [vals (apply-defaults defaults vals)
                       validate! (ns-resolve ns 'validate!)]
                   (validate! vals)
                   vals)))
@@ -86,49 +100,47 @@
   "Validate field definitions"
   [{:keys [name required findable default validators]
     :as args}]
-  (throw-if-not name)
+  (throw-if-not name "Missing name field in definition: %s" args)
   (let [result (merge {:required false
                        :findable false
                        :default nil
                        :validators []
                        :dissoc false} args)]
-    (throw-if-not (= (count result) 6))
+    (throw-if-not (= (count result) 6)
+                  "Unexpected keys found in %s" args)
     result))
 
 (defn i [ns format-str name f]
   (let [n (symbol (format format-str (clojure.core/name name)))]
     (reintern ns n f)))
 
-;; TODO default, and required
-(defn create-col-function [ns collection field]
+;; Note that we need all the defaults here, not just the default for this field
+(defn create-col-function [ns collection field defaults]
   (let [{:keys [findable default validators name required dissoc]} field]
     (when findable
 
       (i ns "find-by-%s" name
          (fn [val & args]
-           (apply congo/fetch-one collection :where {(keyword name) val} args)))
+           (->> args
+                (apply congo/fetch-one collection :where {(keyword name) val})
+                (apply-defaults defaults))))
 
       (i ns "find-by-%s!" name
          (fn [val & args]
            (let [result (apply congo/fetch-one collection :where {(keyword name) val} args)]
              (throw-if-not result
                            "Couldn't find row with %s=%s on collection %s" name val collection)
-             result))))))
+             (apply-defaults defaults result)))))))
 
 
-(defn create-col-functions [namespace collection fields]
-  (doall (map #(create-col-function namespace collection %) fields)))
-
-(defmacro defmodel
+(defn defmodel
   "Define a DB model from its fields"
   [collection & {:keys [validators fields]
-                 :or {validators [] fields []}}]
-  (let [fields (into [] (map canonicalize-field fields))]
-    `(do
-       (let [fields# ~fields
-             validators# ~validators]
-         (create-row-functions *ns* ~collection validators# fields#)
-         (create-col-functions *ns* ~collection fields#)))))
+                    :or {validators [] fields []}}]
+  (let [fields (into [] (map canonicalize-field fields))
+        defaults (into {} (map (fn [f] [(:name f) (:default f)]) fields))]
+    (create-row-functions *ns* collection validators fields defaults)
+    (doseq [f fields] (create-col-function *ns* collection f defaults))))
 
 
 (defn defapi [&args])

@@ -1,16 +1,26 @@
-(ns circle.model.test-mongofinil
+(ns circle.model.test-mongofinil1
   (:use midje.sweet)
+  (:require [clojure.contrib.with-ns :as with-ns])
+  (:require [somnium.congomongo :as congo])
   (:require [circle.init])
   (:require [circle.test-utils :as test])
   (:require [circle.model.mongofinil :as mongofinil]))
 
+(test/test-ns-setup)
+
+
 (mongofinil/defmodel :xs
-  :fields [{:name :x :findable true}
+  :fields [;; simple
+           {:name :x :findable true}
            {:name :y :findable false}
            {:name :z}
-           {:name :w :findable true}])
+           {:name :w :findable true}
 
-(test/test-ns-setup)
+           ;; default
+           {:name :dx :default 5}
+           {:name :dy :default (fn [b] 6)}
+           {:name :dz :default (fn [b] (-> b :x))}
+           ])
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! :x 1 :y 2 :z 3 :w 4)
@@ -45,31 +55,31 @@
     (find-by-w! 2) => throws))
 
 
-
-(fact "incorrectly named attributes are caught")
-
-
+(fact "apply-defaults works"
+  (mongofinil/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
 
 
 
+(fact "incorrectly named attributes are caught"
+  (eval `(mongofinil/defmodel :ys :fields [{:a :b}])) => throws
+  (eval `(mongofinil/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
 
-(fact "col functions are created")
 
-(fact "required throws errors on creation")
-(fact "required does nothing when fields are provided")
+(fact "default works on creation"
+  (create! :x 7) => (contains {:dx 5 :dy 6 :dz 7})
+  (nu :x 7) => (contains {:dx 5 :dy 6 :dz 7}))
 
-(fact "default creates defaults on loading")
-(fact "default creates defaults on creation")
-; check defaults on each function
+(fact "default works on loading"
+  (congo/insert! :xs {:x 22})
+  (find-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
+  (find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
-(fact "default creates defaults during find-by-X")
-
-(fact "function defaults are called")
 
 (fact "dissoc causes things not to be saved to the DB")
 
 (fact "dissoc doesnt stop things being loaded from the DB")
-; check dissoc on each function
+                                        ; check dissoc on each function
+
 
 (fact "id key is present after creation")
 
