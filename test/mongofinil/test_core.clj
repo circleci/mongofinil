@@ -6,7 +6,7 @@
   (:require [mongofinil.core :as core])
   (:require [mongofinil.test-utils :as utils]))
 
-(utils/setup-test-sb)
+(utils/setup-test-db)
 (utisl/setup-midje)
 
 (core/defmodel :xs

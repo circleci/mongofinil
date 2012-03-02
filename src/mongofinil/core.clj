@@ -1,13 +1,11 @@
-(ns circle.model.mongofinil
+(ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
-  (:require [clojure.contrib.with-ns :as with-ns])
-  (:require [clj-time.coerce :as coerce-time])
+
   (:require [somnium.congomongo :as congo])
 
-  (:use [circle.util.except :only (assert! throw-if-not throw-if)])
-  (:use [circle.util.mongo :only (coerce-object-id)])
-  (:require [circle.util.model-validation :as mv])
-  (:require [circle.util.model-validation-helpers :as mvh]))
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if coerce-object-id)])
+  (:require [mongofinil.validation :as mv])
+  (:require [mongofinil.validation-helpers :as mvh]))
 
 
 (defn to-id
