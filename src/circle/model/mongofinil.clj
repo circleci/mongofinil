@@ -4,7 +4,7 @@
   (:require [clj-time.coerce :as coerce-time])
   (:require [somnium.congomongo :as congo])
 
-  (:use [circle.util.except :only (assert! throw-if-not)])
+  (:use [circle.util.except :only (assert! throw-if-not throw-if)])
   (:use [circle.util.mongo :only (coerce-object-id)])
   (:require [circle.util.model-validation :as mv])
   (:require [circle.util.model-validation-helpers :as mvh]))
@@ -35,9 +35,10 @@
 (defn all-validators [validators fields]
   (->> fields
        (map :validator)
-       (into [])
+       (into [(mvh/require-keys (map :name (filter :required fields)))])
        (filter identity)
-       (concat validators)))
+       (concat validators)
+       (into [])))
 
 (defn create-row-functions [ns collection validators defaults]
 
@@ -110,11 +111,12 @@
   [collection & {:keys [validators fields]
                  :or {validators [] fields []}}]
   (let [fields (into [] (map canonicalize-field fields))
-        defaults (row-defaults fields)
-        vs (all-validators validators fields)]
+        defaults (row-defaults fields)]
     `(do
-       (create-row-functions *ns* ~collection ~vs ~defaults)
-       (create-col-functions *ns* ~collection ~fields))))
+       (let [fields# ~fields]
+         (create-row-functions *ns* ~collection (all-validators ~validators fields#) ~defaults)
+         (create-col-functions *ns* ~collection fields#))
+       )))
 
 
 (defn defapi [&args])
