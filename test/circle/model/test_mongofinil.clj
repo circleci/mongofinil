@@ -2,6 +2,8 @@
   (:use midje.sweet)
   (:require [clojure.contrib.with-ns :as with-ns])
   (:require [somnium.congomongo :as congo])
+  (:require [clj-time.core :as time])
+  (:require [clj-time.coerce :as coerce-time])
   (:require [circle.init])
   (:require [circle.test-utils :as test])
   (:require [circle.model.mongofinil :as mongofinil]))
@@ -20,13 +22,15 @@
            {:name :dx :default 5}
            {:name :dy :default (fn [b] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
+
+           {:name :disx :dissoc true}
            ])
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! :x 1 :y 2 :z 3 :w 4)
         obj2 (create! :x 2 :y 3 :z 4 :w 5)]
 
-    ;; create worked
+    ;; create worked and added an id
     obj1 =not=> nil
     obj2 =not=> nil
     (-> obj1 :_id) =not=> nil
@@ -75,18 +79,42 @@
   (find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
 
-(fact "dissoc causes things not to be saved to the DB")
+(fact "dissoc causes things not to be saved to the DB"
+  ;; TODO: We expect the dissoc to be applied on creation, and so the resulting
+  ;; object would not have the value. Maybe that's wrong, but it's fine for now.
+  ;; It's probably wrong for update though
+  (create! :disx 5 :x 12) =not=> (contains {:disx 5})
 
-(fact "dissoc doesnt stop things being loaded from the DB")
-                                        ; check dissoc on each function
+  (find-by-x 12) =not=> (contains {:disx 5}))
 
 
-(fact "id key is present after creation")
+(fact "dissoc doesnt stop things being loaded from the DB"
+  (congo/insert! :xs {:disx 55 :x 55})
+  (find-by-x 55) => (contains {:disx 55}))
 
-(fact "dissoc still have the values in the table")
 
-(fact "joda time roundtrip when fetching from the DB")
+(fact "canonicalize functions work"
+  (let [now (time/now)
+        date (coerce-time/to-date now)]
+    (mongofinil/canonicalize-from-db {:x date}) => {:x now}
+    (mongofinil/canonicalize-from-db {:x 5}) => {:x 5}
+    (mongofinil/canonicalize-value-from-db date) => now
+
+    (mongofinil/canonicalize-to-db {:x now}) => {:x date}
+    (mongofinil/canonicalize-to-db {:x 5}) => {:x 5}
+    (mongofinil/canonicalize-value-to-db now) => date))
+
+
+
+(fact "joda time roundtrip when fetching from the DB"
+   (let [now (time/now)]
+     (create! :x now) => truthy
+     (find-by-x now) => (contains {:x now})))
+
+
 
 (fact "refresh function exists and works (refreshes from DB")
 
 (fact "update function exists and works (updates DB)")
+
+(fact "check validations work"); valid? and validate!
