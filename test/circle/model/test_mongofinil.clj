@@ -1,17 +1,15 @@
-(ns circle.model.test-mongofinil1
+(ns mongofinil.test-core
   (:use midje.sweet)
-  (:require [clojure.contrib.with-ns :as with-ns])
   (:require [somnium.congomongo :as congo])
   (:require [clj-time.core :as time])
   (:require [clj-time.coerce :as coerce-time])
-  (:require [circle.init])
-  (:require [circle.test-utils :as test])
-  (:require [circle.model.mongofinil :as mongofinil]))
+  (:require [mongofinil.core :as core])
+  (:require [mongofinil.test-utils :as utils]))
 
-(test/test-ns-setup)
+(utils/setup-test-sb)
+(utisl/setup-midje)
 
-
-(mongofinil/defmodel :xs
+(core/defmodel :xs
   :fields [;; simple
            {:name :x :findable true}
            {:name :y :findable false}
@@ -60,13 +58,13 @@
 
 
 (fact "apply-defaults works"
-  (mongofinil/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
+  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
 
 
 
 (fact "incorrectly named attributes are caught"
-  (eval `(mongofinil/defmodel :ys :fields [{:a :b}])) => throws
-  (eval `(mongofinil/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
+  (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
+  (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
 
 
 (fact "default works on creation"
@@ -96,13 +94,13 @@
 (fact "canonicalize functions work"
   (let [now (time/now)
         date (coerce-time/to-date now)]
-    (mongofinil/canonicalize-from-db {:x date}) => {:x now}
-    (mongofinil/canonicalize-from-db {:x 5}) => {:x 5}
-    (mongofinil/canonicalize-value-from-db date) => now
+    (core/canonicalize-from-db {:x date}) => {:x now}
+    (core/canonicalize-from-db {:x 5}) => {:x 5}
+    (core/canonicalize-value-from-db date) => now
 
-    (mongofinil/canonicalize-to-db {:x now}) => {:x date}
-    (mongofinil/canonicalize-to-db {:x 5}) => {:x 5}
-    (mongofinil/canonicalize-value-to-db now) => date))
+    (core/canonicalize-to-db {:x now}) => {:x date}
+    (core/canonicalize-to-db {:x 5}) => {:x 5}
+    (core/canonicalize-value-to-db now) => date))
 
 
 
