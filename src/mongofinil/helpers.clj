@@ -1,4 +1,5 @@
-(ns mongofinil.helpers)
+(ns mongofinil.helpers
+  (:import org.bson.types.ObjectId))
 
 (defn ref?
   "Returns true if val is a ref, false otherwise"

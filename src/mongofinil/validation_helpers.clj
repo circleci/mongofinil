@@ -1,7 +1,7 @@
 (ns mongofinil.validation-helpers
   (:require [clojure.set])
   (:require [clojure.string])
-  (:use [circle.util.predicates :only (ref?)]))
+  (:use [mongofinil.helpers :only (ref?)]))
 
 (defmacro require-predicate [f & msg]
   `(fn [o#]
