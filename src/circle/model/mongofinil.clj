@@ -10,14 +10,6 @@
   (:require [circle.util.model-validation-helpers :as mvh]))
 
 
-(defn all-validators [validators fields]
-  (->> fields
-       (map :validator)
-       (into [])
-       (filter identity)
-       (concat validators)
-       ))
-
 (defn to-id
   "Given a string, ObjectId or hash, return the appropriate ObjectId"
   [id]
@@ -25,6 +17,12 @@
    (instance? String id) (congo/object-id id)
    (instance? org.bson.types.ObjectId id) id
    :else (:_id id)))
+
+(defn reintern
+  "unmap and remap the function"
+  [ns sym func]
+  (ns-unmap ns sym)
+  (intern ns sym func))
 
 (defn canonicalize-output
   [hash]
@@ -34,60 +32,61 @@
       (instance? java.util.Date v) (coerce-time/to-date-time v)
       :else v)]))
 
+(defn all-validators [validators fields]
+  (->> fields
+       (map :validator)
+       (into [])
+       (filter identity)
+       (concat validators)))
+
 (defn create-row-functions [ns collection validators defaults]
-  (ns-unmap ns 'valid?)
-  (intern ns 'valid? (fn [row]
-                       (mv/valid? validators row)))
 
-  (ns-unmap ns 'validate!)
-  (intern ns 'validate! (fn [row]
-                          (mv/validate! validators row)))
+  (reintern ns 'valid? (fn [row]
+                         (mv/valid? validators row)))
 
-  (ns-unmap ns 'find)
-  (intern ns 'find (fn [id]
-                     (let [id (to-id id)]
-                       (canonicalize-output
-                        (congo/fetch-by-id collection)))))
+  (reintern ns 'validate! (fn [row]
+                            (mv/validate! validators row)))
 
-  (ns-unmap ns 'find-one)
-  (intern ns 'find-one (fn [id & args]
+  (reintern ns 'find (fn [id]
+                       (let [id (to-id id)]
                          (canonicalize-output
-                          (apply congo/fetch-one collection args))))
+                          (congo/fetch-by-id collection)))))
 
-  (ns-unmap ns 'nu)
-  (intern ns 'nu
-          (fn [& {:as vals}] (let [vals (merge defaults vals)
-                                  validate! (ns-resolve ns 'validate!)]
-                              (validate! vals)
-                              vals)))
-  (ns-unmap ns 'create!)
-  (intern ns 'create! (fn [& args]
-                        (let [nu (ns-resolve ns 'nu)
-                              vals (apply nu args)]
-                          (congo/insert! collection vals))))
+  (reintern ns 'find-one (fn [id & args]
+                           (canonicalize-output
+                            (apply congo/fetch-one collection args))))
 
-  (ns-unmap ns 'set-fields!)
-  (intern ns 'set-fields! (fn [first & {:as args}]
-                            (let [id (to-id first)]
-                              (congo/fetch-and-modify collection {:_id id} {:$set args})))))
+  (reintern ns 'nu
+            (fn [& {:as vals}] (let [vals (merge defaults vals)
+                                    validate! (ns-resolve ns 'validate!)]
+                                (validate! vals)
+                                vals)))
+  (reintern ns 'create! (fn [& args]
+                          (let [nu (ns-resolve ns 'nu)
+                                vals (apply nu args)]
+                            (congo/insert! collection vals))))
+
+  (reintern ns 'set-fields! (fn [first & {:as args}]
+                              (let [id (to-id first)]
+                                (congo/fetch-and-modify collection {:_id id} {:$set args})))))
 
 (defn row-defaults
   "Returns a map of default values, including nil for values with no default"
   [field-defs]
   (into {} (map (fn [f] [(:default f) (:name f)]) field-defs)))
 
-
 (defn canonicalize-field
   "Validate field definitions"
   [{:keys [name required findable default validators]
     :as args}]
   (throw-if-not name)
-  (merge {:required false :findable false :default nil :validators []} args))
+  (let [result (merge {:required false :findable false :default nil :validators []} args)]
+    (throw-if-not (= (count result) 5))
+    result))
 
 (defn i [ns format-str name f]
   (let [n (symbol (format format-str (clojure.core/name name)))]
-    (ns-unmap ns n)
-    (intern ns n f)))
+    (reintern ns n f)))
 
 ;; TODO default, and required
 (defn create-col-function [ns collection field]
