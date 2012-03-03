@@ -54,20 +54,6 @@
     (find-by-x! 2) => throws
     (find-by-w! 2) => throws))
 
-
-(fact "apply-defaults works"
-  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
-
-;.;. The work itself praises the master. -- CPE Bach
-(fact "no nil defaults"
-  (create! :x 5) =not=> (contains {:y anything}))
-
-(fact "find-one works"
-  (create! :x 5 :y 6)
-  (find-one) => (contains {:x 5 :y 6})
-  (find-one :where {:y 6}) => (contains {:x 5 :y 6})
-  (find-one :where {:y 7}) => nil)
-
 (fact "find works"
   (let [obj (create! :x 5 :y 6)
         id (:_id obj)]
@@ -76,10 +62,16 @@
     (find (str id)) => (contains obj)
     (find (congo/object-id (str id))) => (contains obj)))
 
-(fact "incorrectly named attributes are caught"
-  (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
-  (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
+(fact "find-one works"
+  (create! :x 5 :y 6)
+  (find-one) => (contains {:x 5 :y 6})
+  (find-one :where {:y 6}) => (contains {:x 5 :y 6})
+  (find-one :where {:y 7}) => nil)
 
+
+(fact "apply-defaults works"
+  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9})
+  ((core/wrap-input-defaults (fn [] {:a :b}) nil)) => {:a :b})
 
 (fact "default works on creation"
   (create! :x 7) => (contains {:dx 5 :dy 6 :dz 7})
@@ -90,6 +82,9 @@
   (find-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
   (find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
+(fact "no nil defaults"
+  (create! :x 5) =not=> (contains {:y anything}))
+
 
 (fact "dissoc causes things not to be saved to the DB"
   ;; TODO: We expect the dissoc to be applied on creation, and so the resulting
@@ -98,18 +93,6 @@
   (create! :disx 5 :x 12) =not=> (contains {:disx 5})
 
   (find-by-x 12) =not=> (contains {:disx 5}))
-
-
-(fact "dissoc doesnt stop things being loaded from the DB"
-  (congo/insert! :xs {:disx 55 :x 55})
-  (find-by-x 55) => (contains {:disx 55}))
-
-(fact "refresh function exists and works (refreshes from DB")
-
-(fact "update function exists and works (updates DB)")
-
-(fact "check validations work"); valid? and validate!
-
 
 
 (fact "ensure set works as planned"
@@ -128,3 +111,19 @@
       (-> new :a) => "x"
       (-> new :c) => "d"
       (-> new :e) => "f")))
+
+
+(future-fact "dissoc doesnt stop things being loaded from the DB"
+  (congo/insert! :xs {:disx 55 :x 55})
+  (find-by-x 55) => (contains {:disx 55}))
+
+(future-fact "refresh function exists and works (refreshes from DB")
+
+(future-fact "update function exists and works (updates DB)")
+
+(future-fact "check validations work"); valid? and validate!
+
+
+(future-fact "incorrectly named attributes are caught"
+  (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
+  (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
