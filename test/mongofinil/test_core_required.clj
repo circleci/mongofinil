@@ -1,9 +1,10 @@
 (ns mongofinil.test-core-required
   (:use midje.sweet)
-  (:require [mongofinil.core :as core]))
+  (:require [mongofinil.core :as core])
+  (:require [mongofinil.testing-utils :as utils]))
 
 (utils/setup-test-db)
-(utisl/setup-midje)
+(utils/setup-midje)
 
 (core/defmodel :xs
   :fields [;; simple

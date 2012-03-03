@@ -22,24 +22,6 @@
   (ns-unmap ns sym)
   (intern ns sym func))
 
-(defn canonicalize-value-from-db [val]
-  (cond
-   (instance? java.util.Date val) (coerce-time/to-date-time val)
-   :else val))
-
-(defn canonicalize-value-to-db [val]
-  (cond
-   (instance? org.joda.time.DateTime val) (coerce-time/to-date val)
-   :else val))
-
-(defn canonicalize-from-db
-  [hash]
-  (into {} (for [[k v] hash] [k (canonicalize-value-from-db v)])))
-
-(defn canonicalize-to-db
-  [hash]
-  (into {} (for [[k v] hash] [k (canonicalize-value-to-db v)])))
-
 (defn col-validators
   "Returns a vector of validators from field definitions"
   [fields]
@@ -54,10 +36,11 @@
   "Given an object, fill in the missing fields with their defaults"
   [defaults values]
   (-> (into {} (for [[k v] defaults]
-                  (cond
-                   (contains? k values) [k (-> values k)]
-                   (fn? v) [k (v values)]
-                   :else [k v])))
+                 (cond
+                  (contains? k values) [k (-> values k)]
+                  (fn? v) [k (v values)]
+                  (nil? v) nil
+                  :else [k v])))
       (merge values)))
 
 (defn apply-dissocs
@@ -80,19 +63,14 @@
               (fn [id]
                 (let [id (to-id id)]
                   (->> (congo/fetch-by-id collection id)
-                       (apply-defaults defaults)
-                       (canonicalize-from-db)))))
+                       (apply-defaults defaults)))))
 
     (reintern ns 'find-one
-              (fn [args]
-                (->> args
-                     (canonicalize-to-db)
-                     (apply congo/fetch-one collection)
-                     (apply-defaults defaults)
-                     (canonicalize-from-db))))
+              (fn [& args]
+                (let [result (apply congo/fetch-one collection args)]
+                  (when result
+                    (apply-defaults defaults result)))))
 
-    ;; TODO: doing this wrong. We should canonicalize the output here, but that
-    ;; means refactoring this so that create! can call congo/insert! after it runs
     (reintern ns 'nu
               (fn [& {:as vals}]
                 (let [validate! (ns-resolve ns 'validate!)
@@ -104,18 +82,19 @@
     (reintern ns 'create!
               (fn [& vals]
                 (let [nu (ns-resolve ns 'nu)
-                      vals (apply nu vals)
-                      vals (canonicalize-from-db vals)]
-                  (canonicalize-from-db
-                   (congo/insert! collection vals)))))
+                      vals (apply nu vals)]
+                  (congo/insert! collection vals))))
+
+    (reintern ns 'instance-count
+              (fn []
+                (congo/fetch-count collection)))
 
 
-    (reintern ns 'set-fields! (fn [first & {:as args}]
-                                (let [id (to-id first)
-                                      args (canonicalize-to-db args)]
-                                  ;; ignore dissoc here, it's clearly desired
-                                  ;; TODO: canonicalize from DB
-                                  (congo/fetch-and-modify collection {:_id id} {:$set args}))))))
+    (reintern ns 'set-fields!
+              (fn [obj & {:as vals}]
+                (let [id (to-id obj)
+                      args (apply-dissocs dissocs vals)]
+                  (congo/fetch-and-modify collection {:_id id} {:$set args}))))))
 
 (defn canonicalize-field-defs
   "Validate field definitions"
@@ -142,23 +121,15 @@
 
       (i ns "find-by-%s" name
          (fn [val & args]
-           (let [val (canonicalize-value-to-db val)]
-             (->> args
-                  (canonicalize-to-db)
-                  (apply congo/fetch-one collection :where {(keyword name) val})
-                  (apply-defaults defaults)
-                  (canonicalize-from-db)))))
+           (let [result (apply congo/fetch-one collection :where {(keyword name) val} args)]
+             (when result
+               (apply-defaults defaults result)))))
 
       (i ns "find-by-%s!" name
          (fn [val & args]
-           (let [val (canonicalize-value-to-db val)]
-             (->> args
-                  (canonicalize-to-db)
-                  (apply congo/fetch-one collection :where {(keyword name) val})
-                  #(throw-if-not %
-                                 "Couldn't find row with %s=%s on collection %s" name val collection)
-                  (apply-defaults defaults)
-                  (canonicalize-from-db))))))))
+           (let [result (apply congo/fetch-one collection :where {(keyword name) val} args)]
+             (throw-if-not result "Couldn't find row with %s=%s on collection %s" name val collection)
+             (apply-defaults defaults result)))))))
 
 
 (defn defmodel

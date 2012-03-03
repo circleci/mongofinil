@@ -22,12 +22,14 @@
   (throw (Exception. (apply format args))))
 
 (defmacro throw-if [test & format-args]
-  `(when ~test
-     (throwf ~@format-args)))
+  `(if ~test
+     (throwf ~@format-args)
+     ~test))
 
 (defmacro throw-if-not [test & format-args]
-  `(when (not ~test)
-     (throwf ~@format-args)))
+  `(if (not ~test)
+     (throwf ~@format-args)
+     ~test))
 
 (defmacro assert!
   "Asserts expr is truthy. Returns expr on success, or throws msg"
