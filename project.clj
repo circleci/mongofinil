@@ -11,7 +11,6 @@
                  [clj-time "0.3.7"]
 
                  [midje "1.3.1"]
-                 [cdt "1.2.6.1-SNAPSHOT"]]
 
   :dev-dependencies [[lein-test-out "0.1.1"]
                      [midje "1.3.1" :exclusions [org.clojure/clojure]]

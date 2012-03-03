@@ -1,14 +1,12 @@
-(ns circle.model.test-mongofinil1
+(ns mongofinil.test-core-required
   (:use midje.sweet)
-  (:require [clojure.contrib.with-ns :as with-ns])
-  (:require [circle.init])
-  (:require [circle.test-utils :as test])
-  (:require [circle.model.mongofinil :as mongofinil]))
+  (:require [mongofinil.core :as core])
+  (:require [mongofinil.testing-utils :as utils]))
 
-(test/test-ns-setup)
+(utils/setup-test-db)
+(utils/setup-midje)
 
-
-(mongofinil/defmodel :xs
+(core/defmodel :xs
   :fields [;; simple
            {:name :z}
            {:name :w :findable true}
