@@ -25,29 +25,26 @@
   [f dissocs skip]
   (fn [& args]
     (if dissocs
-      (do
-        (let [skipped (take skip args)
-              {:as kept} (drop skip args)
-              used (apply dissoc kept dissocs)
-              used_list (flatten (seq used))
-              args (concat skipped used_list)]
-          (apply f args)))
+      (let [skipped (take skip args)
+            {:as kept} (drop skip args)
+            used (apply dissoc kept dissocs)
+            used_list (flatten (seq used))
+            args (concat skipped used_list)]
+        (apply f args))
       (apply f args))))
 
 (defn wrap-input-ref
   "If use?, take the first input values out of its ref"
   [f use?]
   (if use?
-    (fn [val & args]
-      (apply f @val args))
+    (fn [id & args] (apply f @id args))
     f))
 
 (defn wrap-output-ref
   "If use?, return a ref of the real result"
   [f use?]
   (if use?
-    (fn [& args]
-      (ref (apply f args)))
+    (fn [& args] (ref (apply f args)))
     f))
 
 (defn apply-defaults
@@ -85,16 +82,20 @@
            (apply f)))
     f))
 
+(defn coerce-id
+  [id]
+  (cond
+   (instance? clojure.lang.IDeref id) (coerce-id @id)
+   (instance? String id) (congo/object-id id)
+   (instance? org.bson.types.ObjectId id) id
+   :else (:_id id)))
+
 (defn wrap-coerce-input
   "Wrap f to take the first value, and coerce it to an ObjectId"
   [f use?]
   (if use?
     (fn [id & args]
-      (let [id (cond
-                (instance? String id) (congo/object-id id)
-                (instance? org.bson.types.ObjectId id) id
-                :else (:_id id))]
-        (apply f id args)))
+      (apply f (coerce-id id) args))
     f))
 
 (defn intern-fn
@@ -120,12 +121,15 @@
                 coerce-id-input false}}
           fdef]
       (-> fn
+          ;; instead of using wrap-input-ref, all the current cases are handled
+          ;; by the conditional checking for refs in coerce-input. I suspect
+          ;; this will change with update, but we haven't implemented that yet
 ;          (wrap-input-ref input-ref)
+          (wrap-coerce-input coerce-id-input)
           (wrap-input-defaults input-defaults)
           (wrap-dissocs input-dissocs input-dissoc-skip)
-          (wrap-coerce-input coerce-id-input)
           (wrap-output-defaults output-defaults)
-  ;        (wrap-output-ref output-ref)
+          (wrap-output-ref output-ref)
           (intern-fn ns name)))))
 
 
@@ -180,6 +184,7 @@
                      :input-dissocs dissocs
                      :input-dissoc-skip 1
                      :input-ref use-refs
+                     :output-ref use-refs
                      :name "set-fields!"}]
     [valid? validate! find find-one nu create! instance-count set-fields!]))
 
