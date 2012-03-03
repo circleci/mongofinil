@@ -8,7 +8,6 @@
 
                  ;; Misc
                  [swank-clojure "1.3.4"]
-                 [clj-time "0.3.7"]
 
                  [midje "1.3.1"]]
 

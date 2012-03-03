@@ -1,7 +1,6 @@
 (ns mongofinil.test-refs
   (:use midje.sweet)
   (:require [somnium.congomongo :as congo])
-  (:require [clj-time.core :as time])
   (:require [mongofinil.core :as core])
   (:use [mongofinil.helpers :only (ref?)])
   (:require [mongofinil.testing-utils :as utils]))
