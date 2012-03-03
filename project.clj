@@ -10,7 +10,7 @@
                  [swank-clojure "1.3.4"]
                  [clj-time "0.3.7"]
 
-                 [midje "1.3.1"]
+                 [midje "1.3.1"]]
 
   :dev-dependencies [[lein-test-out "0.1.1"]
                      [midje "1.3.1" :exclusions [org.clojure/clojure]]
