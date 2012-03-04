@@ -18,20 +18,22 @@
        ;; validator for the require attribute
        (into [(mvh/require-keys (map :name (filter :required fields)))])))
 
+(defn apply-to-last [f args]
+  (let [skipped (butlast args)
+        val (last args)
+        val (f val)
+        args (concat skipped [val])]
+    args))
 
 (defn wrap-dissocs
-  "Wrap f to dissoc keys from the arguments when treated as a hash. Skip the
-  first :skip values, which are returned as normal"
-  [f dissocs skip]
-  (fn [& args]
-    (if dissocs
-      (let [skipped (take skip args)
-            {:as kept} (drop skip args)
-            used (apply dissoc kept dissocs)
-            used_list (flatten (seq used))
-            args (concat skipped used_list)]
-        (apply f args))
-      (apply f args))))
+  "Wrap f to dissoc keys from the arguments when treated as a hash."
+  [f dissocs]
+  (if dissocs
+    (fn [& args]
+      (let [dissoced (apply-to-last
+                      (fn [val] (apply dissoc val dissocs)) args)]
+        (apply f dissoced)))
+    f))
 
 (defn wrap-input-ref
   "If use?, take the first input values out of its ref"
@@ -48,17 +50,17 @@
     f))
 
 (defn apply-defaults
-  [defaults values]
+  [defaults vals]
   (if defaults
     (-> (for [[k v] defaults]
           (cond
-           (contains? k values) [k (get values k)]
-           (fn? v) [k (v values)]
+           (contains? k vals) [k (get vals k)]
+           (fn? v) [k (v vals)]
            (nil? v) nil
            :else [k v]))
         (#(into {} %))
-        (merge values))
-    values))
+        (merge vals))
+    vals))
 
 (defn wrap-output-defaults
   "Wrap f to add default output values for the result of f"
@@ -74,12 +76,10 @@
   "Wrap f to add default output values for the result of f"
   [f defaults]
   (if defaults
-    (fn [& {:as args}]
-      (->> args
-           (apply-defaults defaults)
-           (seq)
-           (flatten)
-           (apply f)))
+    (fn [& args]
+      (let [args (apply-to-last
+                  (fn [val] (apply-defaults defaults val)) args)]
+        (apply f args)))
     f))
 
 (defn coerce-id
@@ -113,11 +113,11 @@
     (let [{:keys [name fn
                   input-ref output-ref
                   input-defaults output-defaults
-                  input-dissocs input-dissoc-skip
+                  input-dissocs
                   coerce-id-input]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
-                input-dissocs nil input-dissoc-skip 0
+                input-dissocs nil
                 coerce-id-input false}}
           fdef]
       (-> fn
@@ -127,7 +127,7 @@
 ;          (wrap-input-ref input-ref)
           (wrap-coerce-input coerce-id-input)
           (wrap-input-defaults input-defaults)
-          (wrap-dissocs input-dissocs input-dissoc-skip)
+;         (wrap-dissocs input-dissocs)
           (wrap-output-defaults output-defaults)
           (wrap-output-ref output-ref)
           (intern-fn ns name)))))
@@ -155,21 +155,21 @@
               :output-ref use-refs
               :name "find"}
 
-        find-one {:fn (fn [& args] (apply congo/fetch-one collection args))
+        find-one {:fn (fn [& options] (apply congo/fetch-one collection options))
                   :output-defaults defaults
                   :output-ref use-refs
                   :name "find-one"}
 
-        nu-fn (fn [& {:as vals}]
-                (validate!-fn vals)
-                vals)
+        nu-fn (fn [val]
+                (validate!-fn val)
+                val)
         nu {:fn nu-fn
             :input-defaults defaults
             :output-ref use-refs
             :input-dissocs dissocs
             :name "nu"}
 
-        create! {:fn (fn [& vals] (->> vals (apply nu-fn) (congo/insert! collection)))
+        create! {:fn (fn [val] (congo/insert! collection (nu-fn val)))
                 :input-defaults defaults
                 :output-ref use-refs
                 :input-dissocs dissocs
@@ -178,15 +178,23 @@
         instance-count {:fn (fn [] (congo/fetch-count collection))
                         :name "instance-count"}
 
-        set-fields! {:fn (fn [id & {:as args}]
-                           (congo/fetch-and-modify collection {:_id id} {:$set args}))
+        set-fields! {:fn (fn [id update]
+                           (congo/fetch-and-modify collection {:_id id} {:$set update}))
                      :coerce-id-input true
                      :input-dissocs dissocs
-                     :input-dissoc-skip 1
                      :input-ref use-refs
                      :output-ref use-refs
-                     :name "set-fields!"}]
-    [valid? validate! find find-one nu create! instance-count set-fields!]))
+                     :name "set-fields!"}
+
+        update! {:fn (fn [id new]
+                       (congo/update! collection {:_id id} new))
+                 :coerce-input-id true
+                 :input-dissocs true
+                 :input-ref use-refs
+                 :output-ref use-refs
+                 :name "update!"}]
+
+    [valid? validate! find find-one nu create! instance-count set-fields! update!]))
 
 (defn create-col-function [collection field defaults dissocs use-refs]
   (let [{:keys [findable default validators name required dissoc]} field
