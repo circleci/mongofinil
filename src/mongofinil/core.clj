@@ -122,13 +122,16 @@
                 coerce-id-input false}}
           fdef]
       (-> fn
+
           ;; instead of using wrap-input-ref, all the current cases are handled
           ;; by the conditional checking for refs in coerce-input. I suspect
           ;; this will change with update, but we haven't implemented that yet
-;          (wrap-input-ref input-ref)
+          ;; (wrap-input-ref input-ref)
+
+          ;; TODO: update! and set-fields! to not update the ref in-place
           (wrap-coerce-input coerce-id-input)
           (wrap-input-defaults input-defaults)
-;         (wrap-dissocs input-dissocs)
+          (wrap-dissocs input-dissocs)
           (wrap-output-defaults output-defaults)
           (wrap-output-ref output-ref)
           (intern-fn ns name)))))
@@ -190,7 +193,7 @@
         update! {:fn (fn [id new]
                        (congo/update! collection {:_id id} new :upsert false))
                  :coerce-id-input true
-                 :input-dissocs true
+                 :input-dissocs dissocs
                  :input-ref use-refs
                  :output-ref use-refs
                  :name "update!"}]
