@@ -125,8 +125,6 @@
 
 (future-fact "refresh function exists and works (refreshes from DB")
 
-(future-fact "update function exists and works (updates DB)")
-
 (future-fact "check validations work"); valid? and validate!
 
 

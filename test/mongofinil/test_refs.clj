@@ -24,8 +24,8 @@
            {:name :disx :dissoc true}])
 
 (fact "row findable functions are created and work"
-  (let [obj1 (create! :x 1 :y 2 :z 3 :w 4)
-        obj2 (create! :x 2 :y 3 :z 4 :w 5)]
+  (let [obj1 (create! {:x 1 :y 2 :z 3 :w 4})
+        obj2 (create! {:x 2 :y 3 :z 4 :w 5})]
 
     ;; create worked and added an id
     obj1 =not=> nil
@@ -57,28 +57,28 @@
     @(find-by-w! 2) => throws))
 
 (fact "find works"
-  (let [obj @(create! :x 5 :y 6)
-        id (:_id obj)]
-    @(find (ref obj)) => (contains obj)
-    @(find obj) => (contains obj)
-    @(find id) => (contains obj)
-    @(find (str id)) => (contains obj)
-    @(find (congo/object-id (str id))) => (contains obj)))
+  (let [obj (create! {:x 5 :y 6})
+        id (:_id @obj)]
+    @(find obj) => (contains @obj)
+    @(find id) => (contains @obj)
+    @(find (str id)) => (contains @obj)
+    @(find (congo/object-id (str id))) => (contains @obj)
+    @(find (ref @obj)) => (contains @obj)))
 
 (fact "find-one works"
-  (create! :x 5 :y 6)
+  (create! {:x 5 :y 6})
   @(find-one) => (contains {:x 5 :y 6})
   @(find-one :where {:y 6}) => (contains {:x 5 :y 6})
   @(find-one :where {:y 7}) => nil)
 
 
 (fact "apply-defaults works"
-  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9})
-  ((core/wrap-input-defaults (fn [] {:a :b}) nil)) => {:a :b})
+  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
+
 
 (fact "default works on creation"
-  @(create! :x 7) => (contains {:dx 5 :dy 6 :dz 7})
-  @(nu :x 7) => (contains {:dx 5 :dy 6 :dz 7}))
+  @(create! {:x 7}) => (contains {:dx 5 :dy 6 :dz 7})
+  @(nu {:x 7}) => (contains {:dx 5 :dy 6 :dz 7}))
 
 (fact "default works on loading"
   (congo/insert! :xs {:x 22})
@@ -86,33 +86,42 @@
   @(find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
 (fact "no nil defaults"
-  @(create! :x 5) =not=> (contains {:y anything}))
+  @(create! {:x 5}) =not=> (contains {:y anything}))
 
 
 (fact "dissoc causes things not to be saved to the DB"
   ;; TODO: We expect the dissoc to be applied on creation, and so the resulting
   ;; object would not have the value. Maybe that's wrong, but it's fine for now.
   ;; It's probably wrong for update though
-  (create! :disx 5 :x 12) =not=> (contains {:disx 5})
+  (create! {:disx 5 :x 12}) =not=> (contains {:disx 5})
 
   (find-by-x 12) =not=> (contains {:disx 5}))
 
+
 (fact "ensure set works as planned"
   ;; add and check expected values
-  (create! :a "b" :c "d")
+  (create! {:a "b" :c "d"})
   (let [old (find-one)]
     (-> @old :a) => "b"
     (-> @old :c) => "d"
 
     ;; set and check expected values
-    (let [result (set-fields! old :a "x" :e "f")
+    (let [result (set-fields! old {:a "x" :e "f"})
           count (instance-count)
           new (find-one)]
       count => 1
-       @result => @old
-       (-> @new :a) => "x"
-       (-> @new :c) => "d"
-       (-> @new :e) => "f")))
+      @result => @old
+      (-> @new :a) => "x"
+      (-> @new :c) => "d"
+      (-> @new :e) => "f")))
+
+(fact "update! works"
+  (instance-count) => 0
+  (let [x (create! {:a :b :x :w})]
+    (update! x {:c :d :a :B}))
+  (instance-count) => 1
+  @(find-one) => (contains {:c "d" :a "B"})
+  @(find-one) =not=> (contains {:x "w"}))
 
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"
@@ -120,8 +129,6 @@
   (find-by-x 55) => (contains {:disx 55}))
 
 (future-fact "refresh function exists and works (refreshes from DB")
-
-(future-fact "update function exists and works (updates DB)")
 
 (future-fact "check validations work"); valid? and validate!
 
