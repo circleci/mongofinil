@@ -110,20 +110,13 @@
       (-> new :c) => "d"
       (-> new :e) => "f")))
 
-;.;. a ({:x :w, :a :b})
-;.;. ({:x :w, :a :b})
-;.;. x ({:a :b, :x :w, :dx 5, :dy 6, :dz :w})
-;.;.
-;.;. [31mFAIL[0m at (NO_SOURCE_FILE:1)
-;.;. Actual result did not agree with the checking function.
-;.;.         Actual result: {:x "w", :a "b", :_id #<ObjectId 4f52d9973004b386b48d20b2>, :dx 5, :dy 6, :dz "w"}
-;.;.     Checking function: (contains {:c "d", :a "B", :x "w"})
-;.;.     The checker said this about the reason:
-;.;.         Best match found: {:x "w"}.
 (fact "update! works"
+  (instance-count) => 0
   (let [x (create! {:a :b :x :w})]
     (update! x {:c :d :a :B}))
-  (find-one) => (contains {:c "d" :a "B" :x "w"}))
+  (instance-count) => 1
+  (find-one) => (contains {:c "d" :a "B"})
+  (find-one) =not=> (contains {:x "w"}))
 
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"

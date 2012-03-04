@@ -5,7 +5,8 @@
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if coerce-object-id)])
   (:require [mongofinil.validation :as mv])
-  (:require [mongofinil.validation-helpers :as mvh]))
+  (:require [mongofinil.validation-helpers :as mvh])
+  (:import org.bson.types.ObjectId))
 
 
 (defn col-validators
@@ -169,7 +170,7 @@
             :input-dissocs dissocs
             :name "nu"}
 
-        create! {:fn (fn [val] (congo/insert! collection (nu-fn val)))
+        create! {:fn (fn [val] (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
                 :input-defaults defaults
                 :output-ref use-refs
                 :input-dissocs dissocs
@@ -187,8 +188,8 @@
                      :name "set-fields!"}
 
         update! {:fn (fn [id new]
-                       (congo/update! collection {:_id id} new))
-                 :coerce-input-id true
+                       (congo/update! collection {:_id id} new :upsert false))
+                 :coerce-id-input true
                  :input-dissocs true
                  :input-ref use-refs
                  :output-ref use-refs
