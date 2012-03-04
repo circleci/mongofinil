@@ -15,5 +15,5 @@
            {:name :rx :required true}])
 
 (fact "required works"
-  (create! :x 5) => throws
-  (create! :x 6 :rx 7) => (contains {:x 6 :rx 7}))
+  (create! {:x 5}) => throws
+  (create! {:x 6 :rx 7}) => (contains {:x 6 :rx 7}))
