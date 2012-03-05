@@ -59,11 +59,10 @@
 (fact "find works"
   (let [obj (create! {:x 5 :y 6})
         id (:_id @obj)]
-    @(find obj) => (contains @obj)
+    @(find @obj) => (contains @obj)
     @(find id) => (contains @obj)
     @(find (str id)) => (contains @obj)
-    @(find (congo/object-id (str id))) => (contains @obj)
-    @(find (ref @obj)) => (contains @obj)))
+    @(find (congo/object-id (str id))) => (contains @obj)))
 
 (fact "find-one works"
   (create! {:x 5 :y 6})
@@ -102,26 +101,28 @@
   ;; add and check expected values
   (create! {:a "b" :c "d"})
   (let [old (find-one)]
-    (-> @old :a) => "b"
-    (-> @old :c) => "d"
+    @old => (contains {:a "b" :c "d"})
 
     ;; set and check expected values
     (let [result (set-fields! old {:a "x" :e "f"})
-          count (instance-count)
           new (find-one)]
-      count => 1
-      @result => @old
-      (-> @new :a) => "x"
-      (-> @new :c) => "d"
-      (-> @new :e) => "f")))
+      (instance-count) => 1
+      result => old ;; the refs are the same
+      @old => (contains {:a "x" :e "f" :c "d"})
+      @old =not=> (contains :a "b")
+
+      @new => (contains {:a "x" :e "f" :c "d"}))))
 
 (fact "update! works"
   (instance-count) => 0
   (let [x (create! {:a :b :x :w})]
-    (update! x {:c :d :a :B}))
-  (instance-count) => 1
-  @(find-one) => (contains {:c "d" :a "B"})
-  @(find-one) =not=> (contains {:x "w"}))
+    (update! x {:c :d :a :B}) => x
+    (instance-count) => 1
+    @(find-one) => (contains {:c "d" :a "B"})
+    @(find-one) =not=> (contains {:x "w"})
+
+    ;; test that the ref is updated
+    @x => (contains {:c "d" :a "B"})))
 
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"

@@ -105,7 +105,7 @@
           count (instance-count)
           new (find-one)]
       count => 1
-      result => old
+      result => new
       (-> new :a) => "x"
       (-> new :c) => "d"
       (-> new :e) => "f")))

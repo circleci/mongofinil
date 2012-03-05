@@ -2,8 +2,9 @@
   "A Mongoid-like library that lets you focus on the important stuff"
 
   (:require [somnium.congomongo :as congo])
+  (:require [somnium.congomongo.coerce :as congo-coerce])
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if coerce-object-id)])
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if)])
   (:require [mongofinil.validation :as mv])
   (:require [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId))
@@ -36,19 +37,21 @@
         (apply f dissoced)))
     f))
 
-(defn wrap-input-ref
-  "If use?, take the first input values out of its ref"
-  [f use?]
-  (if use?
-    (fn [id & args] (apply f @id args))
-    f))
-
-(defn wrap-output-ref
-  "If use?, return a ref of the real result"
-  [f use?]
-  (if use?
-    (fn [& args] (ref (apply f args)))
-    f))
+(defn wrap-refs
+  "If input? and output?, replace the first argument's value with the result. If
+  just input?, deref the only argument. If just output?, wrap a ref around the
+  result. Otherwise, just run normally"
+  [f input? output?]
+  (cond
+   (and input? output?) (fn [& args]
+                          (let [first (first args)
+                                derefed (concat [@first] (rest args))
+                                result (apply f derefed)]
+                            (dosync (ref-set first result))
+                            first))
+   output? (fn [& args] (ref (apply f args)))
+   input? (fn [& args] (apply f (concat [@(first args)] (rest args))))
+   :else f))
 
 (defn apply-defaults
   [defaults vals]
@@ -86,18 +89,9 @@
 (defn coerce-id
   [id]
   (cond
-   (instance? clojure.lang.IDeref id) (coerce-id @id)
    (instance? String id) (congo/object-id id)
    (instance? org.bson.types.ObjectId id) id
    :else (:_id id)))
-
-(defn wrap-coerce-input
-  "Wrap f to take the first value, and coerce it to an ObjectId"
-  [f use?]
-  (if use?
-    (fn [id & args]
-      (apply f (coerce-id id) args))
-    f))
 
 (defn intern-fn
   "intern the function in :ns under the name :name"
@@ -114,26 +108,16 @@
     (let [{:keys [name fn
                   input-ref output-ref
                   input-defaults output-defaults
-                  input-dissocs
-                  coerce-id-input]
+                  input-dissocs]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
-                input-dissocs nil
-                coerce-id-input false}}
+                input-dissocs nil}}
           fdef]
       (-> fn
-
-          ;; instead of using wrap-input-ref, all the current cases are handled
-          ;; by the conditional checking for refs in coerce-input. I suspect
-          ;; this will change with update, but we haven't implemented that yet
-          ;; (wrap-input-ref input-ref)
-
-          ;; TODO: update! and set-fields! to not update the ref in-place
-          (wrap-coerce-input coerce-id-input)
           (wrap-input-defaults input-defaults)
           (wrap-dissocs input-dissocs)
           (wrap-output-defaults output-defaults)
-          (wrap-output-ref output-ref)
+          (wrap-refs input-ref output-ref)
           (intern-fn ns name)))))
 
 
@@ -153,9 +137,8 @@
                    :input-ref use-refs
                    :name "validate!"}
 
-        find {:fn (fn [id] (congo/fetch-by-id collection id))
+        find {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
               :output-defaults defaults
-              :coerce-id-input true
               :output-ref use-refs
               :name "find"}
 
@@ -182,17 +165,22 @@
         instance-count {:fn (fn [] (congo/fetch-count collection))
                         :name "instance-count"}
 
-        set-fields! {:fn (fn [id update]
-                           (congo/fetch-and-modify collection {:_id id} {:$set update}))
-                     :coerce-id-input true
+        set-fields! {:fn (fn [old new-fields]
+                           (congo/fetch-and-modify collection
+                                                   {:_id (:_id old)}
+                                                   {:$set new-fields}
+                                                   :return-new? true
+                                                   :upsert? false))
                      :input-dissocs dissocs
                      :input-ref use-refs
                      :output-ref use-refs
                      :name "set-fields!"}
 
-        update! {:fn (fn [id new]
-                       (congo/update! collection {:_id id} new :upsert false))
-                 :coerce-id-input true
+        update! {:fn (fn [old new]
+                       (congo/update! collection {:_id (:_id old)} new :upsert false)
+                       (-> new
+                           (congo-coerce/coerce [:clojure :mongo])
+                           (congo-coerce/coerce [:mongo :clojure])))
                  :input-dissocs dissocs
                  :input-ref use-refs
                  :output-ref use-refs
