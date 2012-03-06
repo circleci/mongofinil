@@ -72,7 +72,6 @@
       (throw-if-not (map? vals) "Expected a hash, got %s" vals)
       (-> (for [[k v] defaults]
             (cond
-             (contains? k vals) [k (get vals k)]
              (fn? v) [k (v vals)]
              (nil? v) nil
              :else [k v]))
@@ -88,6 +87,21 @@
       (let [result (apply f args)]
         (when result
           (apply-defaults defaults result))))
+    f))
+
+(defn wrap-convert-keywords
+  "If the result of f contains keys which are in keywords, convert them to keywords"
+  [f keywords]
+  (if keywords
+    (fn [& args]
+      (let [result (apply f args)]
+        (if (map? result)
+          (do
+            (-> (for [[k v] result]
+                  (if (contains? keywords k) [k (keyword v)]
+                      [k v]))
+                (#(into {} %))))
+          result)))
     f))
 
 (defn wrap-validate
@@ -133,10 +147,12 @@
                   input-ref output-ref
                   input-defaults output-defaults
                   input-dissocs
-                  validate-input]
+                  validate-input
+                  keywords]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
                 input-dissocs nil
+                keywords nil
                 validate-input false}}
           fdef]
       (-> fn
@@ -145,6 +161,7 @@
           (wrap-validate validate-input)
           (wrap-input-defaults input-defaults)
           (wrap-output-defaults output-defaults)
+          (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (intern-fn ns name)))))
 
@@ -153,7 +170,7 @@
 ;;; Generate the function templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-row-functions [collection row-validators field-defs defaults dissocs use-refs]
+(defn create-row-functions [collection row-validators field-defs defaults dissocs use-refs keywords]
   (let [validators (into row-validators (col-validators field-defs))
 
         valid? {:fn (fn [row] (mv/valid? validators row))
@@ -168,11 +185,13 @@
         find {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
               :output-defaults defaults
               :output-ref use-refs
+              :keywords keywords
               :name "find"}
 
         find-one {:fn (fn [& options] (apply congo/fetch-one collection options))
                   :output-defaults defaults
                   :output-ref use-refs
+                  :keywords keywords
                   :name "find-one"}
 
         nu-fn identity
@@ -181,6 +200,7 @@
             :output-ref use-refs
             :input-dissocs dissocs
             :validate-input validators
+            :keywords keywords
             :name "nu"}
 
         create! {:fn (fn [val]
@@ -189,6 +209,7 @@
                  :output-ref use-refs
                  :input-dissocs dissocs
                  :validate-input validators
+                 :keywords keywords
                  :name "create!"}
 
         instance-count {:fn (fn [] (congo/fetch-count collection))
@@ -203,6 +224,7 @@
                      :input-dissocs dissocs
                      :input-ref use-refs
                      :output-ref use-refs
+                     :keywords keywords
                      :name "set-fields!"}
 
         update! {:fn (fn [old new]
@@ -213,17 +235,19 @@
                  :input-dissocs dissocs
                  :input-ref use-refs
                  :output-ref use-refs
+                 :keywords keywords
                  :name "update!"}]
 
     [valid? validate! find find-one nu create! instance-count set-fields! update!]))
 
-(defn create-col-function [collection field defaults dissocs use-refs]
+(defn create-col-function [collection field defaults dissocs use-refs keywords]
   (let [{:keys [findable default validators name required dissoc]} field
         find-by-X-fn (fn [val & args]
                        (apply congo/fetch-one collection :where {(keyword name) val} args))
         find-by-X {:fn find-by-X-fn
                    :output-ref use-refs
                    :output-defaults defaults
+                   :keywords keywords
                    :name (format "find-by-%s" (clojure.core/name name))}
 
         find-by-X! {:fn (fn [val & args]
@@ -231,6 +255,7 @@
                                (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
                     :output-defaults defaults
                     :output-ref use-refs
+                    :keywords keywords
                     :name (format "find-by-%s!" (clojure.core/name name))}]
     (if findable
       [find-by-X find-by-X!]
@@ -243,15 +268,16 @@
 
 (defn canonicalize-field-defs
   "Validate field definitions"
-  [{:keys [name required findable default validators]
+  [{:keys [name required findable default validators keyword dissoc]
     :as args}]
   (throw-if-not name "Missing name field in definition: %s" args)
   (let [result (merge {:required false
                        :findable false
                        :default nil
+                       :keyword nil
                        :validators []
                        :dissoc false} args)]
-    (throw-if-not (= (count result) 6)
+    (throw-if-not (= (count result) 7)
                   "Unexpected keys found in %s" args)
     result))
 
@@ -263,8 +289,9 @@
   (let [fields (into [] (map canonicalize-field-defs fields))
         defaults (into {} (map (fn [f] [(:name f) (:default f)]) fields))
         dissocs (into [] (map :name (filter :dissoc fields)))
-        row-templates (create-row-functions collection validators fields defaults dissocs use-refs)
-        col-templates (apply concat (for [f fields] (create-col-function collection f defaults dissocs use-refs)))]
+        keywords (into #{} (map :name (filter :keyword fields)))
+        row-templates (create-row-functions collection validators fields defaults dissocs use-refs keywords)
+        col-templates (apply concat (for [f fields] (create-col-function collection f defaults dissocs use-refs keywords)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)))))
 
 

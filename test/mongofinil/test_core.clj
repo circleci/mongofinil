@@ -19,7 +19,10 @@
            {:name :dy :default (fn [b] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
 
-           {:name :disx :dissoc true}])
+           ;; transient
+           {:name :disx :dissoc true}
+
+           {:name :kw :keyword true}])
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! {:x 1 :y 2 :z 3 :w 4})
@@ -65,6 +68,10 @@
   (find-one) => (contains {:x 5 :y 6})
   (find-one :where {:y 6}) => (contains {:x 5 :y 6})
   (find-one :where {:y 7}) => nil)
+
+(fact "keyword works"
+  (create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
+  (find-one) => (contains {:x 5 :kw :asd}))
 
 
 (fact "apply-defaults works"
@@ -131,4 +138,4 @@
   (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
   (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
 
-(fact "calling functions with the wrong signatures should give slightly useful error messages")
+(future-fact "calling functions with the wrong signatures should give slightly useful error messages")
