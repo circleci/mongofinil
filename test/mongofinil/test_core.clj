@@ -85,11 +85,7 @@
 
 
 (fact "dissoc causes things not to be saved to the DB"
-  ;; TODO: We expect the dissoc to be applied on creation, and so the resulting
-  ;; object would not have the value. Maybe that's wrong, but it's fine for now.
-  ;; It's probably wrong for update though
-  (create! {:disx 5 :x 12}) =not=> (contains {:disx 5})
-
+  (create! {:disx 5 :x 12}) => (contains {:disx 5})
   (find-by-x 12) =not=> (contains {:disx 5}))
 
 
@@ -131,3 +127,5 @@
 (future-fact "incorrectly named attributes are caught"
   (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
   (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
+
+(fact "calling functions with the wrong signatures should give slightly useful error messages")

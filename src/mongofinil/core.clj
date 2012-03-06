@@ -29,13 +29,21 @@
     args))
 
 (defn wrap-dissocs
-  "Wrap f to dissoc keys from the arguments when treated as a hash."
+  "Take the last arguent and strips the transient attributes from it. Apply the
+  DB operation, and then readdd the transient attributes to its result"
   [f dissocs]
   (if dissocs
     (fn [& args]
-      (let [dissoced (apply-to-last
-                      (fn [val] (apply dissoc val dissocs)) args)]
-        (apply f dissoced)))
+      (throw-if-not (-> args last map?) "Expecting map, got %s" (last args))
+      (let [val (last args)
+            rest (butlast args)
+            transient (select-keys val dissocs)
+            dissoced (apply dissoc val dissocs)
+            args (concat rest [dissoced])
+            result (apply f args)
+            readded (when result
+                      (merge transient result))]
+        readded))
     f))
 
 (defn wrap-refs
