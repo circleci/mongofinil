@@ -19,6 +19,12 @@
            {:name :dy :default (fn [b] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
 
+           ;; ordered defaults
+           {:name :def1 :default 5}
+           {:name :def2 :default (fn [b] (inc (:def1 b)))}
+           {:name :def3 :default (fn [b] (inc (:def2 b)))}
+           {:name :def4 :default (fn [b] (:x b))}
+
            ;; transient
            {:name :disx :dissoc true}
 
@@ -75,7 +81,7 @@
 
 
 (fact "apply-defaults works"
-  (core/apply-defaults {:x 5 :y (fn [v] 6) :z 10} {:z 9}) => (contains {:x 5 :y 6 :z 9}))
+  (core/apply-defaults [[ :x 5] [:y (fn [v] 6)] [:z 10]] {:z 9}) => (contains {:x 5 :y 6 :z 9}))
 
 
 (fact "default works on creation"
@@ -86,6 +92,9 @@
   (congo/insert! :xs {:x 22})
   (find-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
   (find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
+
+(fact "defaults work in order"
+  (create! {:x 11}) > (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 12}))
 
 (fact "no nil defaults"
   (create! {:x 5}) =not=> (contains {:y anything}))
@@ -121,6 +130,7 @@
   (find-one) => (contains {:c "d" :a "B"})
   (find-one) =not=> (contains {:x "w"}))
 
+;.;. When someone asks you if you're a god, you say 'YES'! -- Zeddemore
 (fact "dont try to serialize dissoced"
   (create! {:disx (fn [] "x")}))
 

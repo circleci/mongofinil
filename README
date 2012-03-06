@@ -1,0 +1,6 @@
+I'll write a proper README soon.
+
+### Notes
+
+  - :keyword true
+  - The order of fields matters for defaults. Defaults are run in the order the fields are listed

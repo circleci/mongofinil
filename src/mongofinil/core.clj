@@ -66,18 +66,20 @@
    :else f))
 
 (defn apply-defaults
-  [defaults vals]
-  (if defaults
+  [defaults row]
+  (if (empty? defaults)
+    row
     (do
-      (throw-if-not (map? vals) "Expected a hash, got %s" vals)
-      (-> (for [[k v] defaults]
-            (cond
-             (fn? v) [k (v vals)]
-             (nil? v) nil
-             :else [k v]))
-          (#(into {} %))
-          (merge vals)))
-    vals))
+      (throw-if-not (map? row) "Expected a hash, got %s" row)
+      (reduce (fn [r d]
+                (let [[k v] d]
+                  (if v
+                    (assoc r k (cond
+                                (contains? r k) (get r k)
+                                (fn? v) (v r)
+                                :else v))
+                    r)))
+              row defaults))))
 
 (defn wrap-output-defaults
   "Wrap f to add default output values for the result of f"
@@ -287,7 +289,7 @@
                  :or {validators [] fields [] use-refs false}
                  :as attrs}]
   (let [fields (into [] (map canonicalize-field-defs fields))
-        defaults (into {} (map (fn [f] [(:name f) (:default f)]) fields))
+        defaults (into [] (map (fn [f] [(:name f) (:default f)]) fields))
         dissocs (into [] (map :name (filter :dissoc fields)))
         keywords (into #{} (map :name (filter :keyword fields)))
         row-templates (create-row-functions collection validators fields defaults dissocs use-refs keywords)
