@@ -28,7 +28,12 @@
            ;; transient
            {:name :disx :dissoc true}
 
-           {:name :kw :keyword true}])
+           ;; keyword
+           {:name :kw :keyword true}
+
+           ;; validation
+           {:name :valid-pos :default 5 :validator (fn [row] (when-not (pos? (:valid-pos row)) "Should be positive"))}]
+  :validations [(fn [row] (when false "failing"))])
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! {:x 1 :y 2 :z 3 :w 4})
@@ -130,7 +135,6 @@
   (find-one) => (contains {:c "d" :a "B"})
   (find-one) =not=> (contains {:x "w"}))
 
-;.;. When someone asks you if you're a god, you say 'YES'! -- Zeddemore
 (fact "dont try to serialize dissoced"
   (create! {:disx (fn [] "x")}))
 
@@ -141,7 +145,10 @@
 
 (future-fact "refresh function exists and works (refreshes from DB")
 
-(future-fact "check validations work"); valid? and validate!
+(fact "check validations work"
+  (let [x (create! {:valid-pos 5})]
+    (valid? x) => true
+    (validate! x) => x))
 
 
 (future-fact "incorrectly named attributes are caught"

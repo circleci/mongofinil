@@ -62,7 +62,7 @@
    output? (fn [& args] (ref (apply f args)))
    input? (fn [& args]
             (throw-if-not (-> args first ref?) "Expecting ref, got %s" (first args))
-            (apply f (concat [@(first args)] (rest args))))
+            (apply f @(first args) (rest args)))
    :else f))
 
 (defn apply-defaults
@@ -182,6 +182,7 @@
         validate!-fn (fn [row] (mv/validate! validators row))
         validate! {:fn validate!-fn
                    :input-ref use-refs
+                   :output-ref use-refs
                    :name "validate!"}
 
         find {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
@@ -277,7 +278,7 @@
                        :findable false
                        :default nil
                        :keyword nil
-                       :validators []
+                       :validator nil
                        :dissoc false} args)]
     (throw-if-not (= (count result) 7)
                   "Unexpected keys found in %s" args)
