@@ -4,7 +4,7 @@
   (:require [somnium.congomongo :as congo])
   (:require [somnium.congomongo.coerce :as congo-coerce])
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if)])
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf)])
   (:require [mongofinil.validation :as mv])
   (:require [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId))
@@ -21,6 +21,7 @@
        (into [(mvh/require-keys (map :name (filter :required fields)))])))
 
 (defn apply-to-last [f args]
+  (throw-if-not (seq? args) "Expected seq, got %s" args)
   (let [skipped (butlast args)
         val (last args)
         val (f val)
@@ -45,25 +46,30 @@
   (cond
    (and input? output?) (fn [& args]
                           (let [first (first args)
+                                _ (throw-if-not (ref? first) "Expecting a ref, got %s" first)
                                 derefed (concat [@first] (rest args))
                                 result (apply f derefed)]
                             (dosync (ref-set first result))
                             first))
    output? (fn [& args] (ref (apply f args)))
-   input? (fn [& args] (apply f (concat [@(first args)] (rest args))))
+   input? (fn [& args]
+            (throw-if-not (-> args first ref?) "Expecting ref, got %s" (first args))
+            (apply f (concat [@(first args)] (rest args))))
    :else f))
 
 (defn apply-defaults
   [defaults vals]
   (if defaults
-    (-> (for [[k v] defaults]
-          (cond
-           (contains? k vals) [k (get vals k)]
-           (fn? v) [k (v vals)]
-           (nil? v) nil
-           :else [k v]))
-        (#(into {} %))
-        (merge vals))
+    (do
+      (throw-if-not (map? vals) "Expected a hash, got %s" vals)
+      (-> (for [[k v] defaults]
+            (cond
+             (contains? k vals) [k (get vals k)]
+             (fn? v) [k (v vals)]
+             (nil? v) nil
+             :else [k v]))
+          (#(into {} %))
+          (merge vals)))
     vals))
 
 (defn wrap-output-defaults
@@ -91,7 +97,8 @@
   (cond
    (instance? String id) (congo/object-id id)
    (instance? org.bson.types.ObjectId id) id
-   :else (:_id id)))
+   (:_id id)  (:_id id)
+   :else (throwf "Expected id, got %s" id)))
 
 (defn intern-fn
   "intern the function in :ns under the name :name"
@@ -156,7 +163,8 @@
             :input-dissocs dissocs
             :name "nu"}
 
-        create! {:fn (fn [val] (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
+        create! {:fn (fn [val]
+                       (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
                 :input-defaults defaults
                 :output-ref use-refs
                 :input-dissocs dissocs
