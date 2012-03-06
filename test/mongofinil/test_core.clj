@@ -114,6 +114,9 @@
   (find-one) => (contains {:c "d" :a "B"})
   (find-one) =not=> (contains {:x "w"}))
 
+(fact "dont try to serialize dissoced"
+  (create! {:disx (fn [] "x")}))
+
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"
   (congo/insert! :xs {:disx 55 :x 55})
