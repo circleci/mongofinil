@@ -90,6 +90,15 @@
           (apply-defaults defaults result))))
     f))
 
+(defn wrap-validate
+  "If validators is true, run validate!"
+  [f validators]
+  (if validators
+    (fn [& args]
+      (mv/validate! validators (last args))
+      (apply f args))
+    f))
+
 (defn wrap-input-defaults
   "Wrap f to add default output values for the result of f"
   [f defaults]
@@ -123,14 +132,18 @@
     (let [{:keys [name fn
                   input-ref output-ref
                   input-defaults output-defaults
-                  input-dissocs]
+                  input-dissocs
+                  validate-input]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
-                input-dissocs nil}}
+                input-dissocs nil
+                validate-input false}}
           fdef]
       (-> fn
-          (wrap-input-defaults input-defaults)
           (wrap-dissocs input-dissocs)
+          ;; always run before dissoc so that you can be required and transient
+          (wrap-validate validate-input)
+          (wrap-input-defaults input-defaults)
           (wrap-output-defaults output-defaults)
           (wrap-refs input-ref output-ref)
           (intern-fn ns name)))))
@@ -162,21 +175,21 @@
                   :output-ref use-refs
                   :name "find-one"}
 
-        nu-fn (fn [val]
-                (validate!-fn val)
-                val)
+        nu-fn identity
         nu {:fn nu-fn
             :input-defaults defaults
             :output-ref use-refs
             :input-dissocs dissocs
+            :validate-input validators
             :name "nu"}
 
         create! {:fn (fn [val]
                        (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
-                :input-defaults defaults
-                :output-ref use-refs
-                :input-dissocs dissocs
-                :name "create!"}
+                 :input-defaults defaults
+                 :output-ref use-refs
+                 :input-dissocs dissocs
+                 :validate-input validators
+                 :name "create!"}
 
         instance-count {:fn (fn [] (congo/fetch-count collection))
                         :name "instance-count"}
