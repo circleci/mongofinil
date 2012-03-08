@@ -40,10 +40,10 @@
             transient (select-keys val dissocs)
             dissoced (apply dissoc val dissocs)
             args (concat rest [dissoced])
-            result (apply f args)
-            readded (when result
-                      (merge transient result))]
-        readded))
+            results (apply f args)
+            _ (throw-if-not (seq? results) "expected seq")
+            results (map #(when % (merge transient %)) results)]
+        results))
     f))
 
 (defn wrap-refs
@@ -56,13 +56,19 @@
                           (let [first (first args)
                                 _ (throw-if-not (ref? first) "Expecting a ref, got %s" first)
                                 derefed (concat [@first] (rest args))
-                                result (apply f derefed)]
+                                results (apply f derefed)
+                                result (last results)] ;; NOT FIRST, that returns nil
+                            (throw-if-not (seq? results) "expecting seq")
+                            (throw-if-not (= 1 (count results)) "expecting exactly one member")
                             (dosync (ref-set first result))
-                            first))
-   output? (fn [& args] (ref (apply f args)))
+                            (list first))) ;; must always return lists
+   output? (fn [& args]
+             (let [results (apply f args)]
+               (throw-if-not (seq? results) "expected seq")
+               (map ref results)))
    input? (fn [& args]
             (throw-if-not (-> args first ref?) "Expecting ref, got %s" (first args))
-            (apply f @(first args) (rest args)))
+            (list (apply f @(first args) (rest args))))
    :else f))
 
 (defn apply-defaults
@@ -86,9 +92,13 @@
   [f defaults]
   (if defaults
     (fn [& args]
-      (let [result (apply f args)]
-        (when result
-          (apply-defaults defaults result))))
+      (let [results (apply f args)]
+        (throw-if-not (seq? results) "expected seq")
+        (map
+         (fn [result]
+           (when result
+             (apply-defaults defaults result)))
+         results)))
     f))
 
 (defn wrap-convert-keywords
@@ -96,14 +106,18 @@
   [f keywords]
   (if keywords
     (fn [& args]
-      (let [result (apply f args)]
-        (if (map? result)
-          (do
-            (-> (for [[k v] result]
-                  (if (contains? keywords k) [k (keyword v)]
-                      [k v]))
-                (#(into {} %))))
-          result)))
+      (let [results (apply f args)]
+        (throw-if-not (seq? results) "expected seq")
+        (map
+         (fn [result]
+           (if (map? result)
+             (do
+               (-> (for [[k v] result]
+                     (if (contains? keywords k) [k (keyword v)]
+                         [k v]))
+                   (#(into {} %))))
+             result))
+         results)))
     f))
 
 (defn wrap-validate
@@ -139,6 +153,29 @@
   (ns-unmap ns (symbol name))
   (intern ns (symbol name) fn))
 
+
+;;; Some functions return single objects, some return lists. We apply all the
+;;; functions to each item in the list, because those lists are lazy. So we need
+;;; to instead wrap those single objects as lazy lists, apply all operations
+;;; using `map`s, and then unwrap the single objects just before returning them.
+(defn wrap-wrap-single-object
+  [f returns-list]
+  (fn [& args]
+    (let [result (apply f args)]
+      (throw-if (seq? result) "didnt expect seq")
+      (if returns-list ;; then it already is a list and we dont wrap it
+        result
+        (list result)))))
+
+(defn wrap-unwrap-single-object
+  [f returns-list]
+    (fn [& args]
+      (let [results (apply f args)]
+        (throw-if-not (seq? results) "expected seq")
+        (if returns-list ;; then we a list is wanted, so don't unwrap it
+          results
+          (first results)))))
+
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
@@ -150,14 +187,18 @@
                   input-defaults output-defaults
                   input-dissocs
                   validate-input
-                  keywords]
+                  keywords
+                  returns-list]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
                 input-dissocs nil
                 keywords nil
-                validate-input false}}
+                validate-input false
+                returns-list false}}
           fdef]
+      (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
+          (wrap-wrap-single-object returns-list)
           (wrap-dissocs input-dissocs)
           ;; always run before dissoc so that you can be required and transient
           (wrap-validate validate-input)
@@ -165,6 +206,7 @@
           (wrap-output-defaults output-defaults)
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
+          (wrap-unwrap-single-object returns-list)
           (intern-fn ns name)))))
 
 
@@ -196,6 +238,12 @@
                   :output-ref use-refs
                   :keywords keywords
                   :name "find-one"}
+
+        where {:fn (fn [cond & options] (apply congo/fetch :where cond options))
+               :name "where"
+               :output-ref use-refs
+               :keywords keywords
+               :output-defaults defaults}
 
         nu-fn identity
         nu {:fn nu-fn
