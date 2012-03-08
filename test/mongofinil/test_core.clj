@@ -63,8 +63,8 @@
     ;; empty
     (find-by-x 3) => nil
     (find-by-w 2) => nil
-    (find-by-x! 2) => throws
-    (find-by-w! 2) => throws))
+    (find-by-x! 3) => (throws Exception "Couldn't find row with :x=3 on collection :xs")
+    (find-by-w! 2) => (throws Exception "Couldn't find row with :w=2 on collection :xs")))
 
 (fact "find works"
   (let [obj (create! {:x 5 :y 6})
@@ -138,17 +138,20 @@
 (fact "dont try to serialize dissoced"
   (create! {:disx (fn [] "x")}))
 
+(fact "check validations work"
+  (let [x (create! {:valid-pos 5})]
+    (valid? x) => true
+    (validate! x) => x))
+
+(fact "check validations fail properly"
+  (create! {:valid-pos -1}) => (throws Exception "Should be positive"))
+
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"
   (congo/insert! :xs {:disx 55 :x 55})
   (find-by-x 55) => (contains {:disx 55}))
 
 (future-fact "refresh function exists and works (refreshes from DB")
-
-(fact "check validations work"
-  (let [x (create! {:valid-pos 5})]
-    (valid? x) => true
-    (validate! x) => x))
 
 
 (future-fact "incorrectly named attributes are caught"
