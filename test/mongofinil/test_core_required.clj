@@ -15,7 +15,7 @@
            {:name :rx :required true}
 
            ;; requires and transient
-           {:name :rt :required true :dissoc true}
+           {:name :rt :required true :transient true}
            ])
 
 (fact "required works"

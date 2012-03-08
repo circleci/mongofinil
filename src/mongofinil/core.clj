@@ -28,18 +28,18 @@
         args (concat skipped [val])]
     args))
 
-(defn wrap-dissocs
+(defn wrap-transients
   "Take the last arguent and strips the transient attributes from it. Apply the
   DB operation, and then readdd the transient attributes to its result"
-  [f dissocs]
-  (if dissocs
+  [f transients]
+  (if transients
     (fn [& args]
       (throw-if-not (-> args last map?) "Expecting map, got %s" (last args))
       (let [val (last args)
             rest (butlast args)
-            transient (select-keys val dissocs)
-            dissoced (apply dissoc val dissocs)
-            args (concat rest [dissoced])
+            transient (select-keys val transients)
+            transiented (apply dissoc val transients)
+            args (concat rest [transiented])
             results (apply f args)
             _ (throw-if-not (seq? results) "expected seq")
             results (map #(when % (merge transient %)) results)]
@@ -186,13 +186,13 @@
     (let [{:keys [name fn
                   input-ref output-ref
                   input-defaults output-defaults
-                  input-dissocs
+                  input-transients
                   validate-input
                   keywords
                   returns-list]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
-                input-dissocs nil
+                input-transients nil
                 keywords nil
                 validate-input false
                 returns-list false}}
@@ -200,8 +200,8 @@
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-wrap-single-object returns-list)
-          (wrap-dissocs input-dissocs)
-          ;; always run before dissoc so that you can be required and transient
+          (wrap-transients input-transients)
+          ;; always run before transient so that you can be required and transient
           (wrap-validate validate-input)
           (wrap-input-defaults input-defaults)
           (wrap-output-defaults output-defaults)
@@ -215,7 +215,7 @@
 ;;; Generate the function templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-row-functions [collection row-validators field-defs defaults dissocs use-refs keywords]
+(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords]
   (let [validators (into row-validators (col-validators field-defs))
 
         valid? {:fn (fn [row] (mv/valid? validators row))
@@ -276,7 +276,7 @@
         nu {:fn nu-fn
             :input-defaults defaults
             :output-ref use-refs
-            :input-dissocs dissocs
+            :input-transients transients
             :validate-input validators
             :keywords keywords
             :name "nu"}
@@ -285,7 +285,7 @@
                        (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
                  :input-defaults defaults
                  :output-ref use-refs
-                 :input-dissocs dissocs
+                 :input-transients transients
                  :validate-input validators
                  :keywords keywords
                  :name "create!"}
@@ -302,7 +302,7 @@
                                                    {:$set new-fields}
                                                    :return-new? true
                                                    :upsert? false))
-                     :input-dissocs dissocs
+                     :input-transients transients
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
@@ -313,7 +313,7 @@
                         (-> new
                             (congo-coerce/coerce [:clojure :mongo])
                             (congo-coerce/coerce [:mongo :clojure])))
-                  :input-dissocs dissocs
+                  :input-transients transients
                   :input-ref use-refs
                   :output-ref use-refs
                   :keywords keywords
@@ -321,8 +321,8 @@
 
     [valid? validate! find-by-id find-by-ids find find-one all nu create! find-count set-fields! replace!]))
 
-(defn create-col-function [collection field defaults dissocs use-refs keywords]
-  (let [{:keys [findable default validators name required dissoc]} field
+(defn create-col-function [collection field defaults transients use-refs keywords]
+  (let [{:keys [findable default validators name required transient foreign]} field
 
         find-one-by-X-fn (fn [val & options]
                            (apply congo/fetch-one collection :where {(keyword name) val} options))
@@ -369,7 +369,7 @@
 
 (defn canonicalize-field-defs
   "Validate field definitions"
-  [{:keys [name required findable default validators keyword dissoc]
+  [{:keys [name required findable default validators keyword transient]
     :as args}]
   (throw-if-not name "Missing name field in definition: %s" args)
   (let [result (merge {:required false
@@ -377,7 +377,7 @@
                        :default nil
                        :keyword nil
                        :validator nil
-                       :dissoc false} args)]
+                       :transient false} args)]
     (throw-if-not (= (count result) 7)
                   "Unexpected keys found in %s" args)
     result))
@@ -389,10 +389,10 @@
                  :as attrs}]
   (let [fields (into [] (map canonicalize-field-defs fields))
         defaults (into [] (map (fn [f] [(:name f) (:default f)]) fields))
-        dissocs (into [] (map :name (filter :dissoc fields)))
+        transients (into [] (map :name (filter :transient fields)))
         keywords (into #{} (map :name (filter :keyword fields)))
-        row-templates (create-row-functions collection validators fields defaults dissocs use-refs keywords)
-        col-templates (apply concat (for [f fields] (create-col-function collection f defaults dissocs use-refs keywords)))]
+        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords)
+        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)))))
 
 

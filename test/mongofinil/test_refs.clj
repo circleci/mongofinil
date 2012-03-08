@@ -21,7 +21,7 @@
            {:name :dy :default (fn [b] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
 
-           {:name :disx :dissoc true}
+           {:name :disx :transient true}
 
            ;; ordered defaults
            {:name :def1 :default 5}
@@ -30,7 +30,7 @@
            {:name :def4 :default (fn [b] (:x b))}
 
            ;; transient
-           {:name :disx :dissoc true}
+           {:name :disx :transient true}
 
            ;; keyword
            {:name :kw :keyword true}
@@ -128,7 +128,7 @@
   @(create! {:x 5}) =not=> (contains {:y anything}))
 
 
-(fact "dissoc causes things not to be saved to the DB"
+(fact "transient causes things not to be saved to the DB"
   @(create! {:disx 5 :x 12}) => (contains {:disx 5})
   @(find-one-by-x 12) =not=> (contains {:disx 5}))
 
@@ -155,7 +155,7 @@
   @(find-one) => (contains {:c "d" :a "B"})
   @(find-one) =not=> (contains {:x "w"}))
 
-(fact "dont try to serialize dissoced"
+(fact "dont try to serialize transiented"
   (create! {:disx (fn [] "x")}))
 
 (fact "check validations work"
@@ -203,7 +203,7 @@
   (-> (all) first deref :kw) => :state)
 
 
-(future-fact "dissoc doesnt stop things being loaded from the DB"
+(future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})
              (find-by-x 55) => (contains {:disx 55}))
 
