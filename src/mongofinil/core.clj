@@ -162,7 +162,7 @@
   [f returns-list]
   (fn [& args]
     (let [result (apply f args)]
-      (throw-if (seq? result) "didnt expect seq")
+      (when-not returns-list (throw-if (seq? result) "didnt expect seq"))
       (if returns-list ;; then it already is a list and we dont wrap it
         result
         (list result)))))
@@ -239,11 +239,19 @@
                   :keywords keywords
                   :name "find-one"}
 
-        where {:fn (fn [cond & options] (apply congo/fetch :where cond options))
-               :name "where"
+        where {:fn (fn [cond & options] (apply congo/fetch collection :where cond options))
                :output-ref use-refs
                :keywords keywords
-               :output-defaults defaults}
+               :returns-list true
+               :output-defaults defaults
+               :name "where"}
+
+        all {:fn (fn [& options] (apply congo/fetch collection options))
+             :output-ref use-refs
+             :keywords keywords
+             :returns-list true
+             :output-defaults defaults
+             :name "all"}
 
         nu-fn identity
         nu {:fn nu-fn
@@ -289,7 +297,7 @@
                  :keywords keywords
                  :name "update!"}]
 
-    [valid? validate! find find-one nu create! instance-count set-fields! update!]))
+    [valid? validate! find find-one nu create! instance-count set-fields! update! where all]))
 
 (defn create-col-function [collection field defaults dissocs use-refs keywords]
   (let [{:keys [findable default validators name required dissoc]} field
