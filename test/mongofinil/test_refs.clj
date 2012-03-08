@@ -124,6 +124,36 @@
     ;; test that the ref is updated
     @x => (contains {:c "d" :a "B"})))
 
+(fact "all works"
+  (all) => (list)
+
+  (create! {:x 5 :y 6})
+  (count (all)) => 1
+
+  (create! {:y 7 :z 8})
+  (let [result (all)]
+    result => seq?
+    (count result) => 2
+    result => (contains [ref? ref?])
+    (-> result first deref) => (contains {:x 5 :y 6})
+    (-> result last deref) => (contains {:y 7 :z 8})))
+
+(fact "where works"
+  (where {:x 5}) => (list)
+
+  (create! {:x 5 :y 6})
+  (-> (where {:x 5}) first deref) => (contains {:x 5 :y 6})
+  (where {:x 6}) => (list)
+
+  (create! {:y 7 :z 8})
+  (let [result (where {:x 5 :y 6})]
+    result => seq?
+    (count result) => 1
+    @(first result) => (contains {:x 5 :y 6}))
+
+  ;; check defaults
+  (count (where {:dx 5})) => 2)
+
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"
   (congo/insert! :xs {:disx 55 :x 55})
