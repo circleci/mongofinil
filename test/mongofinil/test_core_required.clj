@@ -21,10 +21,10 @@
 (fact "required works"
   (create! {:x 5 :rt 5}) => throws
   (create! {:x 6 :rx 7 :rt 7}) => (contains {:x 6 :rx 7 :rt 7})
-  (instance-count) => 1)
+  (find-count) => 1)
 
 (fact "required and transient is legit"
   (create! {:x 5 :rt 5 :rx 17}) => (contains {:x 5 :rt 5 :rx 17})
-  (instance-count) => 1
+  (find-count) => 1
   (find-one) =not=> (contains {:rt 5})
   (find-one) => (contains {:x 5 :rx 17}))
