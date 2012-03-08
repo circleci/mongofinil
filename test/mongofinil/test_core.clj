@@ -41,44 +41,62 @@
 
     obj1 =not=> nil
     obj2 =not=> nil
-    (-> obj1 :_id) =not=> nil
-    (-> obj2 :_id) =not=> nil
-    (dissoc obj1 :_id) => (contains {:x 1 :y 2 :z 3 :w 4})
-    (dissoc obj2 :_id) => (contains {:x 2 :y 3 :z 4 :w 5})
+    (contains? obj1 :_id) => true
+    (contains? obj2 :_id) => true
+    obj1 => (contains {:x 1 :y 2 :z 3 :w 4})
+    obj2 => (contains {:x 2 :y 3 :z 4 :w 5})
 
     ;; success
-    (find-by-x 1) => (contains obj1)
-    (find-by-x! 1) => (contains obj1)
-    (find-by-w 4) => (contains obj1)
-    (find-by-w! 4) => (contains obj1)
-    (find-by-x 2) => (contains obj2)
-    (find-by-x! 2) => (contains obj2)
-    (find-by-w 5) => (contains obj2)
-    (find-by-w! 5) => (contains obj2)
+    (find-one-by-x 1) => (contains obj1)
+    (find-one-by-x! 1) => (contains obj1)
+    (find-one-by-w 4) => (contains obj1)
+    (find-one-by-w! 4) => (contains obj1)
+    (find-one-by-x 2) => (contains obj2)
+    (find-one-by-x! 2) => (contains obj2)
+    (find-one-by-w 5) => (contains obj2)
+    (find-one-by-w! 5) => (contains obj2)
+
+    (first (find-by-x 1)) => (contains obj1)
+    (first (find-by-x! 1)) => (contains obj1)
+    (first (find-by-w 4)) => (contains obj1)
+    (first (find-by-w! 4)) => (contains obj1)
+    (first (find-by-x 2)) => (contains obj2)
+    (first (find-by-x! 2)) => (contains obj2)
+    (first (find-by-w 5)) => (contains obj2)
+    (first (find-by-w! 5)) => (contains obj2)
 
     ;; failure
-    (resolve 'find-by-y) => nil
-    (resolve 'find-by-y!) => nil
+    (resolve 'find-one-by-y) => nil
+    (resolve 'find-one-by-y!) => nil
 
     ;; empty
-    (find-by-x 3) => nil
-    (find-by-w 2) => nil
-    (find-by-x! 3) => (throws Exception "Couldn't find row with :x=3 on collection :xs")
-    (find-by-w! 2) => (throws Exception "Couldn't find row with :w=2 on collection :xs")))
+    (find-one-by-x 3) => nil
+    (find-one-by-w 2) => nil
+    (find-by-w 2) => '()
+    (find-one-by-x! 3) => (throws Exception "Couldn't find row with :x=3 on collection :xs")
+    (find-one-by-w! 2) => (throws Exception "Couldn't find row with :w=2 on collection :xs")))
 
-(fact "find works"
+(fact "find-by-id works"
   (let [obj (create! {:x 5 :y 6})
         id (:_id obj)]
-    (find obj) => (contains obj)
-    (find id) => (contains obj)
-    (find (str id)) => (contains obj)
-    (find (congo/object-id (str id))) => (contains obj)))
+    (find-by-id obj) => (contains obj)
+    (find-by-id id) => (contains obj)
+    (find-by-id (str id)) => (contains obj)
+    (find-by-id (congo/object-id (str id))) => (contains obj)))
+
+(fact "find-by-ids works"
+  (let [obj1 (create! {:x 5 :y 6})
+        obj2 (create! {:x 5 :y 6})
+        ids (map :_id [obj1 obj2])]
+    (find-by-ids [obj1 obj2]) => (contains obj1 obj2)
+    (find-by-ids ids) => (contains obj1 obj2)
+    (find-by-ids (map str ids)) => (contains obj1 obj2)))
 
 (fact "find-one works"
   (create! {:x 5 :y 6})
   (find-one) => (contains {:x 5 :y 6})
-  (find-one :where {:y 6}) => (contains {:x 5 :y 6})
-  (find-one :where {:y 7}) => nil)
+  (find-one {:y 6}) => (contains {:x 5 :y 6})
+  (find-one {:y 7}) => nil)
 
 (fact "keyword works"
   (create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
@@ -95,8 +113,8 @@
 
 (fact "default works on loading"
   (congo/insert! :xs {:x 22})
-  (find-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
-  (find-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
+  (find-one-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
+  (find-one-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
 (fact "defaults work in order"
   (create! {:x 11}) > (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 12}))
@@ -107,31 +125,28 @@
 
 (fact "dissoc causes things not to be saved to the DB"
   (create! {:disx 5 :x 12}) => (contains {:disx 5})
-  (find-by-x 12) =not=> (contains {:disx 5}))
+  (find-one-by-x 12) =not=> (contains {:disx 5}))
 
 
 (fact "ensure set works as planned"
   ;; add and check expected values
   (create! {:a "b" :c "d"})
   (let [old (find-one)]
-    (-> old :a) => "b"
-    (-> old :c) => "d"
+    old => (contains {:a "b" :c "d"})
 
     ;; set and check expected values
     (let [result (set-fields! old {:a "x" :e "f"})
-          count (instance-count)
+          count (find-count)
           new (find-one)]
       count => 1
-      result => new
-      (-> new :a) => "x"
-      (-> new :c) => "d"
-      (-> new :e) => "f")))
+     result => new
+     new => (contains {:a "x" :c "d" :e "f"}))))
 
 (fact "update! works"
-  (instance-count) => 0
+  (find-count) => 0
   (let [x (create! {:a :b :x :w})]
-    (update! x {:c :d :a :B}))
-  (instance-count) => 1
+    (replace! x {:c :d :a :B}))
+  (find-count) => 1
   (find-one) => (contains {:c "d" :a "B"})
   (find-one) =not=> (contains {:x "w"}))
 
@@ -159,20 +174,26 @@
     result => (contains [(contains {:x 5 :y 6}) (contains {:y 7 :z 8})])))
 
 (fact "where works"
-  (where {:x 5}) => (list)
+  (find {:x 5}) => (list)
 
   (create! {:x 5 :y 6})
-  (where {:x 5}) => (contains (contains {:x 5 :y 6}))
-  (where {:x 6}) => (list)
+  (find {:x 5}) => (contains (contains {:x 5 :y 6}))
+  (find {:x 6}) => (list)
 
   (create! {:y 7 :z 8})
-  (let [result (where {:x 5 :y 6})]
+  (let [result (find {:x 5 :y 6})]
     result => seq?
     (count result) => 1
     result => (contains [(contains {:x 5 :y 6})]))
 
   ;; check defaults
-  (count (where {:dx 5})) => 2)
+  (count (find {:dx 5})) => 2)
+
+;.;. For every disciplined effort, there is a multiple reward. -- Rohn
+(fact "`all and :keywords work together"
+  (create! {:kw "state"})
+  (-> (all) first :kw) => :state)
+
 
 (future-fact "dissoc doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})

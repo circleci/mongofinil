@@ -227,24 +227,42 @@
                    :output-ref use-refs
                    :name "validate!"}
 
-        find {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
-              :output-defaults defaults
+        ;;; given a single key, return the object with that key
+        find-by-id {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
+                    :output-defaults defaults
+                    :output-ref use-refs
+                    :keywords keywords
+                    :name "find-by-id"}
+
+        ;;; given a list of keys, return the objects with those keys
+        find-by-ids {:fn (fn [ids & options]
+                           (apply congo/fetch-by-ids collection (map coerce-id ids) options))
+                     :output-defaults defaults
+                     :output-ref use-refs
+                     :keywords keywords
+                     :returns-list true
+                     :name "find-by-ids"}
+
+        ;;; given conditions, find objects which match
+        find {:fn (fn [& options]
+                    (let [[cond & options] options
+                          cond (or cond {})]
+                      (apply congo/fetch collection :where cond options)))
               :output-ref use-refs
               :keywords keywords
+              :returns-list true
+              :output-defaults defaults
               :name "find"}
 
-        find-one {:fn (fn [& options] (apply congo/fetch-one collection options))
-                  :output-defaults defaults
+        ;;; given conditions, find the first object which matches
+        find-one {:fn (fn [& options]
+                        (let [[cond & options] options
+                              cond (or cond {})]
+                          (apply congo/fetch-one collection :where cond options)))
                   :output-ref use-refs
                   :keywords keywords
+                  :output-defaults defaults
                   :name "find-one"}
-
-        where {:fn (fn [cond & options] (apply congo/fetch collection :where cond options))
-               :output-ref use-refs
-               :keywords keywords
-               :returns-list true
-               :output-defaults defaults
-               :name "where"}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
              :output-ref use-refs
@@ -271,8 +289,11 @@
                  :keywords keywords
                  :name "create!"}
 
-        instance-count {:fn (fn [] (congo/fetch-count collection))
-                        :name "instance-count"}
+        find-count {:fn (fn [& options]
+                          (let [[cond & options] options
+                                cond (or cond {})]
+                            (apply congo/fetch-count collection :where cond options)))
+                    :name "find-count"}
 
         set-fields! {:fn (fn [old new-fields]
                            (congo/fetch-and-modify collection
@@ -286,38 +307,58 @@
                      :keywords keywords
                      :name "set-fields!"}
 
-        update! {:fn (fn [old new]
-                       (congo/update! collection {:_id (:_id old)} new :upsert false)
-                       (-> new
-                           (congo-coerce/coerce [:clojure :mongo])
-                           (congo-coerce/coerce [:mongo :clojure])))
-                 :input-dissocs dissocs
-                 :input-ref use-refs
-                 :output-ref use-refs
-                 :keywords keywords
-                 :name "update!"}]
+        replace! {:fn (fn [old new]
+                        (congo/update! collection {:_id (:_id old)} new :upsert false)
+                        (-> new
+                            (congo-coerce/coerce [:clojure :mongo])
+                            (congo-coerce/coerce [:mongo :clojure])))
+                  :input-dissocs dissocs
+                  :input-ref use-refs
+                  :output-ref use-refs
+                  :keywords keywords
+                  :name "replace!"}]
 
-    [valid? validate! find find-one nu create! instance-count set-fields! update! where all]))
+    [valid? validate! find-by-id find-by-ids find find-one all nu create! find-count set-fields! replace!]))
 
 (defn create-col-function [collection field defaults dissocs use-refs keywords]
   (let [{:keys [findable default validators name required dissoc]} field
-        find-by-X-fn (fn [val & args]
-                       (apply congo/fetch-one collection :where {(keyword name) val} args))
+
+        find-one-by-X-fn (fn [val & options]
+                           (apply congo/fetch-one collection :where {(keyword name) val} options))
+        find-by-X-fn (fn [val & options]
+                       (apply congo/fetch collection :where {(keyword name) val} options))
+
         find-by-X {:fn find-by-X-fn
                    :output-ref use-refs
                    :output-defaults defaults
+                   :returns-list true
                    :keywords keywords
                    :name (format "find-by-%s" (clojure.core/name name))}
 
-        find-by-X! {:fn (fn [val & args]
-                           (-> (apply find-by-X-fn val args)
-                               (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
+        find-one-by-X {:fn find-one-by-X-fn
+                       :output-ref use-refs
+                       :output-defaults defaults
+                       :keywords keywords
+                       :name (format "find-one-by-%s" (clojure.core/name name))}
+
+        find-by-X! {:fn (fn [val & options]
+                          (-> (apply find-by-X-fn val options)
+                              (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
                     :output-defaults defaults
+                    :returns-list true
                     :output-ref use-refs
                     :keywords keywords
-                    :name (format "find-by-%s!" (clojure.core/name name))}]
+                    :name (format "find-by-%s!" (clojure.core/name name))}
+
+        find-one-by-X! {:fn (fn [val & options]
+                              (-> (apply find-one-by-X-fn val options)
+                                  (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
+                        :output-defaults defaults
+                        :output-ref use-refs
+                        :keywords keywords
+                        :name (format "find-one-by-%s!" (clojure.core/name name))}]
     (if findable
-      [find-by-X find-by-X!]
+      [find-by-X find-by-X! find-one-by-X find-one-by-X!]
       [])))
 
 
