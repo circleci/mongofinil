@@ -68,7 +68,7 @@
                (map ref results)))
    input? (fn [& args]
             (throw-if-not (-> args first ref?) "Expecting ref, got %s" (first args))
-            (list (apply f @(first args) (rest args))))
+            (apply f @(first args) (rest args)))
    :else f))
 
 (defn apply-defaults
@@ -142,6 +142,7 @@
 (defn coerce-id
   [id]
   (cond
+   (ref? id) (coerce-id @id)
    (instance? String id) (congo/object-id id)
    (instance? org.bson.types.ObjectId id) id
    (:_id id)  (:_id id)

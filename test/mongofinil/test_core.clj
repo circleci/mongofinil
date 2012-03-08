@@ -37,8 +37,9 @@
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! {:x 1 :y 2 :z 3 :w 4})
-       obj2 (create! {:x 2 :y 3 :z 4 :w 5})]
+        obj2 (create! {:x 2 :y 3 :z 4 :w 5})]
 
+    ;; create worked and added an id
     obj1 =not=> nil
     obj2 =not=> nil
     (contains? obj1 :_id) => true
@@ -117,7 +118,7 @@
   (find-one-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
 (fact "defaults work in order"
-  (create! {:x 11}) > (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 12}))
+  (create! {:x 11}) => (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 11}))
 
 (fact "no nil defaults"
   (create! {:x 5}) =not=> (contains {:y anything}))
@@ -142,7 +143,7 @@
      result => new
      new => (contains {:a "x" :c "d" :e "f"}))))
 
-(fact "update! works"
+(fact "replace! works"
   (find-count) => 0
   (let [x (create! {:a :b :x :w})]
     (replace! x {:c :d :a :B}))
@@ -173,23 +174,22 @@
     (count result) => 2
     result => (contains [(contains {:x 5 :y 6}) (contains {:y 7 :z 8})])))
 
-(fact "where works"
+(fact "find works"
   (find {:x 5}) => (list)
 
   (create! {:x 5 :y 6})
-  (find {:x 5}) => (contains (contains {:x 5 :y 6}))
+  (-> {:x 5} find first) => (contains {:x 5 :y 6})
   (find {:x 6}) => (list)
 
   (create! {:y 7 :z 8})
   (let [result (find {:x 5 :y 6})]
     result => seq?
     (count result) => 1
-    result => (contains [(contains {:x 5 :y 6})]))
+    (first result) => (contains {:x 5 :y 6}))
 
   ;; check defaults
   (count (find {:dx 5})) => 2)
 
-;.;. For every disciplined effort, there is a multiple reward. -- Rohn
 (fact "`all and :keywords work together"
   (create! {:kw "state"})
   (-> (all) first :kw) => :state)
