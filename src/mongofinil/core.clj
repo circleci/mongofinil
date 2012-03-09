@@ -296,30 +296,53 @@
                             (apply congo/fetch-count collection :where cond options)))
                     :name "find-count"}
 
+        ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
                            (congo/fetch-and-modify collection
                                                    {:_id (:_id old)}
                                                    {:$set new-fields}
                                                    :return-new? true
                                                    :upsert? false))
+
                      :input-transients transients
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
+                     ;; validate-input validators
                      :name "set-fields!"}
 
-        replace! {:fn (fn [old new]
-                        (congo/update! collection {:_id (:_id old)} new :upsert false)
-                        (-> new
-                            (congo-coerce/coerce [:clojure :mongo])
-                            (congo-coerce/coerce [:mongo :clojure])))
+        replace!-fn (fn [id new]
+                      (congo/update! collection {:_id (coerce-id id)} new :upsert false)
+                      (-> new
+                          (congo-coerce/coerce [:clojure :mongo])
+                          (congo-coerce/coerce [:mongo :clojure])))
+
+        ;; TODO: replace! should always be validated
+        replace! {:fn replace!-fn
                   :input-transients transients
                   :input-ref use-refs
                   :output-ref use-refs
                   :keywords keywords
-                  :name "replace!"}]
+                  ;;: validate-input validators
+                  :name "replace!"}
 
-    [valid? validate! find-by-id find-by-ids find find-one all nu create! find-count set-fields! replace!]))
+        ;; TODO: save! should always be validated
+        save! {:fn (fn [current] (replace!-fn current current))
+               :input-transients transients
+               :input-ref use-refs
+               :output-ref use-refs
+               :keywords keywords
+               :validate-input validators
+               :name "save!"}]
+
+    [valid? validate!
+     find-by-id find-by-ids
+     find find-one
+     all
+     nu create!
+     find-count
+     set-fields!
+     replace! save!]))
 
 (defn create-col-function [collection field defaults transients use-refs keywords]
   (let [{:keys [findable default validators name required transient foreign]} field

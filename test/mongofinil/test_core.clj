@@ -194,6 +194,25 @@
   (create! {:kw "state"})
   (-> (all) first :kw) => :state)
 
+(fact "save! works"
+  (let [row (create! {:x 7})
+        row (merge {:y 45 :kw :g} row)
+        saved (save! row)]
+    saved => (contains {:y 45 :kw :g})
+
+    (find-one) => (contains {:y 45 :kw :g})))
+
+
+(fact "validators cause save to fail coreectly")
+(fact "validators dont prevent valid objects from saving")
+
+(fact "validators cause set-fields to fail coreectly")
+(fact "validators dont prevent valid objects from having their fields set")
+
+(fact "validators cause replace! to fail coreectly")
+(fact "validators dont prevent valid objects from being replaced")
+
+
 
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})
