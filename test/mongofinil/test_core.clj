@@ -213,6 +213,14 @@
 (fact "validators dont prevent valid objects from being replaced")
 
 
+(fact "find-by-id has an error with an invalid id causes an error"
+  (find-by-id "") => (throws Exception #"Got empty string")
+  (find-by-id nil) => (throws Exception "Expected id, got nil")
+
+  (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
+  (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
+
+
 
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})

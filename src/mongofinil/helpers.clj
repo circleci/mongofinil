@@ -21,6 +21,9 @@
 (defn throwf [& args]
   (throw (Exception. (apply format args))))
 
+(defn eager-map [& args]
+  (doall (apply map args)))
+
 (defmacro throw-if [test & format-args]
   `(if ~test
      (throwf ~@format-args)

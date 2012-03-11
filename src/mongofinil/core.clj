@@ -4,7 +4,7 @@
   (:require [somnium.congomongo :as congo])
   (:require [somnium.congomongo.coerce :as congo-coerce])
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf)])
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:require [mongofinil.validation :as mv])
   (:require [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId))
@@ -14,11 +14,11 @@
   "Returns a vector of validators from field definitions"
   [fields]
   (->> fields
-       (map :validator)
+       (eager-map :validator)
        (filter identity)
 
        ;; validator for the require attribute
-       (into [(mvh/require-keys (map :name (filter :required fields)))])))
+       (into [(mvh/require-keys (eager-map :name (filter :required fields)))])))
 
 (defn apply-to-last [f args]
   (throw-if-not (seq? args) "Expected seq, got %s" args)
@@ -142,8 +142,10 @@
 (defn coerce-id
   [id]
   (cond
+   (nil? id) (throwf "Expected id, got nil")
    (ref? id) (coerce-id @id)
-   (instance? String id) (congo/object-id id)
+   (instance? String id) (do (throw-if (= id "") "Got empty string (\"\"), expected id")
+                             (congo/object-id id))
    (instance? org.bson.types.ObjectId id) id
    (:_id id)  (:_id id)
    :else (throwf "Expected id, got %s" id)))
@@ -170,12 +172,12 @@
 
 (defn wrap-unwrap-single-object
   [f returns-list]
-    (fn [& args]
-      (let [results (apply f args)]
-        (throw-if-not (seq? results) "expected seq")
-        (if returns-list ;; then we a list is wanted, so don't unwrap it
-          results
-          (first results)))))
+  (fn [& args]
+    (let [results (apply f args)]
+      (throw-if-not (seq? results) "expected seq")
+      (if returns-list ;; then we a list is wanted, so don't unwrap it
+        results
+        (first results)))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
@@ -237,7 +239,7 @@
 
         ;;; given a list of keys, return the objects with those keys
         find-by-ids {:fn (fn [ids & options]
-                           (apply congo/fetch-by-ids collection (map coerce-id ids) options))
+                           (apply congo/fetch-by-ids collection (eager-map coerce-id ids) options))
                      :output-defaults defaults
                      :output-ref use-refs
                      :keywords keywords
@@ -410,10 +412,10 @@
   [collection & {:keys [validators fields use-refs]
                  :or {validators [] fields [] use-refs false}
                  :as attrs}]
-  (let [fields (into [] (map canonicalize-field-defs fields))
-        defaults (into [] (map (fn [f] [(:name f) (:default f)]) fields))
-        transients (into [] (map :name (filter :transient fields)))
-        keywords (into #{} (map :name (filter :keyword fields)))
+  (let [fields (into [] (eager-map canonicalize-field-defs fields))
+        defaults (into [] (eager-map (fn [f] [(:name f) (:default f)]) fields))
+        transients (into [] (eager-map :name (filter :transient fields)))
+        keywords (into #{} (eager-map :name (filter :keyword fields)))
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)))))
