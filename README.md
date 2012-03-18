@@ -8,7 +8,8 @@ It takes some inspiration from Mongoid, from the Rails world, but attempts to be
 ## Installation
 
 ```clojure
-    [mongofinil "0.1.11"]```
+    [mongofinil "0.1.11"]
+```
 
 ## Usage
 
