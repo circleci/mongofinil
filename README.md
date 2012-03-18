@@ -63,7 +63,7 @@ Now use it:
 
 ## A plug for our service:
 
-Circle is an easy to use Continuous Integration service for web apps: CircleCI.com
+[Circle](http://circleci.com) is an easy to use Continuous Integration service for web apps: [CircleCI.com](http://circleci.com)
 
 ## License
 
