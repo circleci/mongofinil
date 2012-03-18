@@ -41,9 +41,11 @@ Now use it:
 (user/save! u)
 (user/validate! u) ; throws if doesn't match the validators
 (user/all)
-(user/nu {:email "..." :login "pbiggar"} ; doesnt save in the DB, does validate
-(user/create! {:email "..." :login "..."} ; does save to DB, does validate
-(user/set-fields u {:login "..."} ; atomically set fields
+(user/nu {:email "..." :login "pbiggar"}) ; doesnt save in the DB, does validate
+(user/create! {:email "..." :login "..."}) ; does save to DB, does validate
+(user/set-fields u {:login "..."}) ; atomically set fields
+(user/push! u :alist 5)  ; atomically push into arrays
+(user/pull! u :alist 5) ; atomically remove from arrays
 ```
 
 

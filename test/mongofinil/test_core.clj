@@ -224,6 +224,23 @@
   (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
   (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
 
+(fact "push! works"
+  (let [orig (create! {:a []})
+        new (push! orig :a "b")
+        refound (find-one)]
+    (:a orig) => []
+    (:a new) => ["b"]
+    (:a refound) => ["b"]))
+
+(fact "pull! works"
+    (let [orig (create! {:a ["a" "b" "c"]})
+        new (pull! orig :a "b")
+        refound (find-one)]
+    (:a orig) => ["a" "b" "c"]
+    (:a new) => ["a" "c"]
+    (:a refound) => ["a" "c"]))
+
+
 ;;; This works in congomongo 1.9
 (future-fact "calling create twice on a row with an index should raise an error"
   (let [obj {:unique1 "abc@abc.com"}
@@ -246,7 +263,6 @@
     (find-count) => 1
     (create! obj) => map?
     (find-count) => 2))
-
 
 
 (future-fact "transient doesnt stop things being loaded from the DB"

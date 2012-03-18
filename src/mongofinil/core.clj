@@ -34,12 +34,12 @@
   [f transients]
   (if transients
     (fn [& args]
-      (throw-if-not (-> args last map?) "Expecting map, got %s" (last args))
-      (let [val (last args)
-            rest (butlast args)
+      (throw-if-not (-> args first map?) "Expecting map, got %s" (first args))
+      (let [val (first args)
+            rest (rest args)
             transient (select-keys val transients)
             transiented (apply dissoc val transients)
-            args (concat rest [transiented])
+            args (concat [transiented] rest)
             results (apply f args)
             _ (throw-if-not (seq? results) "expected seq")
             results (map #(when % (merge transient %)) results)]
@@ -160,7 +160,7 @@
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
 ;;; to instead wrap those single objects as lazy lists, apply all operations
-;;; using `map`s, and then unwrap the single objects just before returning them.
+;; using `map`s, and then unwrap the single objects just before returning them.
 (defn wrap-wrap-single-object
   [f returns-list]
   (fn [& args]
@@ -300,13 +300,12 @@
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
-                           (let [res (congo/fetch-and-modify collection
-                                                             {:_id (coerce-id old)}
-                                                             {:$set new-fields}
-                                                             :return-new? true
-                                                             :upsert? false)]
-                             (throw-if-not res "Expected result, got nil")
-                             res))
+                           (assert! (congo/fetch-and-modify collection
+                                                            {:_id (coerce-id old)}
+                                                            {:$set new-fields}
+                                                            :return-new? true
+                                                            :upsert? false)
+                                    "Expected result, got nil"))
 
                      :input-transients transients
                      :input-ref use-refs
@@ -314,6 +313,30 @@
                      :keywords keywords
                      ;; validate-input validators
                      :name "set-fields!"}
+
+        push! {:fn (fn [old field value]
+                     (assert! (congo/fetch-and-modify collection
+                                                      {:_id (coerce-id old)}
+                                                      {:$push {field value}}
+                                                      :return-new? true
+                                                      :upsert? false)
+                              "Expected result, got nil"))
+               :input-transients transients ;; TODO: this makes no sense
+               :output-ref use-refs
+               :keywords keywords
+               :name "push!"}
+
+        pull! {:fn (fn [old field value]
+                     (assert! (congo/fetch-and-modify collection
+                                                      {:_id (coerce-id old)}
+                                                      {:$pull {field value}}
+                                                      :return-new? true
+                                                      :upsert? false)
+                              "Expected result, got nil"))
+               :input-transients transients ;; TODO: this makes no sense
+               :output-ref use-refs
+               :keywords keywords
+               :name "pull!"}
 
         replace!-fn (fn [id new-obj]
                       (congo/update! collection {:_id (coerce-id id)} new-obj :upsert false)
@@ -346,7 +369,8 @@
      nu create!
      find-count
      set-fields!
-     replace! save!]))
+     replace! save!
+     push! pull!]))
 
 (defn create-col-function [collection field defaults transients use-refs keywords]
   (let [{:keys [findable default validators name required transient foreign]} field
