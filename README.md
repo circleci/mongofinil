@@ -55,16 +55,16 @@ Now use it:
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
   - set-fields! returns the new, updated object. Updates refs if necessary
 
-## TODO
+### TODO
  - defapi
  - Warn if findable fields don't have indexes
    - Add :unique attribute for findable fields, and warn if the index isn't unique
 
 
-## A plug for our service:
+### A plug for our service:
 
 [Circle](http://circleci.com) is an easy to use Continuous Integration service for web apps: [CircleCI.com](http://circleci.com)
 
-## License
+### License
 
 MIT
