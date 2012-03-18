@@ -4,7 +4,7 @@
                  [org.clojure/clojure-contrib "1.3-b7125d79301cbc1ce44b24c5b29e57685202041a"]
 
                  ;; DB
-                 [congomongo "0.1.8"]
+                 [congomongo "0.1.9-SNAPSHOT"]
 
                  ;; Misc
                  [swank-clojure "1.3.4"]

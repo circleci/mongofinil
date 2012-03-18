@@ -300,11 +300,13 @@
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
-                           (congo/fetch-and-modify collection
-                                                   {:_id (:_id old)}
-                                                   {:$set new-fields}
-                                                   :return-new? true
-                                                   :upsert? false))
+                           (let [res (congo/fetch-and-modify collection
+                                                             {:_id (coerce-id old)}
+                                                             {:$set new-fields}
+                                                             :return-new? true
+                                                             :upsert? false)]
+                             (throw-if-not res "Expected result, got nil")
+                             res))
 
                      :input-transients transients
                      :input-ref use-refs
@@ -313,9 +315,9 @@
                      ;; validate-input validators
                      :name "set-fields!"}
 
-        replace!-fn (fn [id new]
-                      (congo/update! collection {:_id (coerce-id id)} new :upsert false)
-                      (-> new
+        replace!-fn (fn [id new-obj]
+                      (congo/update! collection {:_id (coerce-id id)} new-obj :upsert false)
+                      (-> new-obj
                           (congo-coerce/coerce [:clojure :mongo])
                           (congo-coerce/coerce [:mongo :clojure])))
 

@@ -2,7 +2,8 @@
   (:use midje.sweet)
   (:require [somnium.congomongo :as congo])
   (:require [mongofinil.core :as core])
-  (:require [mongofinil.testing-utils :as utils]))
+  (:require [mongofinil.testing-utils :as utils])
+  (:import org.bson.types.ObjectId))
 
 (utils/setup-test-db)
 (utils/setup-midje)
@@ -30,6 +31,9 @@
 
            ;; keyword
            {:name :kw :keyword true}
+
+           ;; unique
+           {:name :unique1} ;; for congo interop, not a feature
 
            ;; validation
            {:name :valid-pos :default 5 :validator (fn [row] (when-not (pos? (:valid-pos row)) "Should be positive"))}]
@@ -220,6 +224,28 @@
   (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
   (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
 
+(fact "calling create twice on a row with an index should raise an error"
+  (let [obj {:unique1 "abc@abc.com"}
+        inserted (congo/insert! :xs (assoc obj :_id (ObjectId.)))]
+
+    (congo/add-index! :xs [:unique1] :unique true)
+
+    ;; check the index works
+    (find-count) => 1
+    (congo/insert! :xs obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
+    (find-count) => 1
+
+    ;; check we raise an error
+    (create! obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
+    (find-count) => 1
+
+
+    ;; check we can add again if the constraint is removed
+    (set-fields! inserted {:unique1 "x"})
+    (find-count) => 1
+    (create! obj) => map?
+    (find-count) => 2))
+
 
 
 (future-fact "transient doesnt stop things being loaded from the DB"
@@ -230,7 +256,7 @@
 
 
 (future-fact "incorrectly named attributes are caught"
-  (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
-  (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
+             (eval `(core/defmodel :ys :fields [{:a :b}])) => (throws Exception)
+             (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => (throws Exception))
 
 (future-fact "calling functions with the wrong signatures should give slightly useful error messages")
