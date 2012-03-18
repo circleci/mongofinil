@@ -5,15 +5,16 @@ Mongofinil reads a declarative specification of your models, and generates a nam
 It takes some inspiration from Mongoid, from the Rails world, but attempts to be idiomatic clojure.
 
 
-## Installation
+### Installation
 
 ```clojure
     [mongofinil "0.1.11"]
 ```
 
-## Usage
+### Usage
 
-# First declare your model
+First declare your model:
+
 ```clojure
 (ns circle.model.user
   (:require [mongofinil.core :as mongofinil]))
@@ -31,7 +32,7 @@ It takes some inspiration from Mongoid, from the Rails world, but attempts to be
 ```
 
 
-# Now use it
+Now use it:
 
 ```clojure
 (require 'circle.model.user)
@@ -48,7 +49,7 @@ It takes some inspiration from Mongoid, from the Rails world, but attempts to be
 
 
 
-### Notes
+#### Notes
   - :keyword true returns keywords for keys instead of strings
   - :use-refs returns refs instead of lists and hashes.
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
