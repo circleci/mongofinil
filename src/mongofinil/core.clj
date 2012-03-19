@@ -152,9 +152,11 @@
 
 (defn intern-fn
   "intern the function in :ns under the name :name"
-  [fn ns name]
+  [fn {:keys [ns name doc arglists]}]
   (ns-unmap ns (symbol name))
-  (intern ns (symbol name) fn))
+  (intern ns (with-meta (symbol name)
+               {:doc doc
+                :arglists arglists}) fn))
 
 
 ;;; Some functions return single objects, some return lists. We apply all the
@@ -186,6 +188,7 @@
   [ns function-defs]
   (doseq [fdef function-defs]
     (let [{:keys [name fn
+                  doc arglists
                   input-ref output-ref
                   input-defaults output-defaults
                   input-transients
@@ -210,7 +213,7 @@
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
-          (intern-fn ns name)))))
+          (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -233,6 +236,7 @@
         ;;; given a single key, return the object with that key
         find-by-id {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
                     :output-defaults defaults
+                    :arglists '([id])
                     :output-ref use-refs
                     :keywords keywords
                     :name "find-by-id"}
@@ -240,6 +244,8 @@
         ;;; given a list of keys, return the objects with those keys
         find-by-ids {:fn (fn [ids & options]
                            (apply congo/fetch-by-ids collection (eager-map coerce-id ids) options))
+                     :doc "returns a seq of rows. Options are kw arguments that congo understands, such as :limit and :sort"
+                     :arglists '([ids & options])
                      :output-defaults defaults
                      :output-ref use-refs
                      :keywords keywords
@@ -251,6 +257,8 @@
                      (let [[cond & options] options
                            cond (or cond {})]
                        (apply congo/fetch collection :where cond options)))
+               :doc "returns a seq of rows that match the where clause. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
+               :arglists '([where & options])
                :output-ref use-refs
                :keywords keywords
                :returns-list true
@@ -262,12 +270,16 @@
                         (let [[cond & options] options
                               cond (or cond {})]
                           (apply congo/fetch-one collection :where cond options)))
+                  :doc "returns the first row that matches the where clause. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
+                  :arglists '([where & options])
                   :output-ref use-refs
                   :keywords keywords
                   :output-defaults defaults
                   :name "find-one"}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
+             :doc "returns all rows. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
+             :arglists '([& options])
              :output-ref use-refs
              :keywords keywords
              :returns-list true
@@ -285,6 +297,8 @@
 
         create! {:fn (fn [val]
                        (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
+                 :doc "Takes a map, inserts and returns a new row."
+                 :arglists '([row])
                  :input-defaults defaults
                  :output-ref use-refs
                  :input-transients transients
@@ -296,6 +310,8 @@
                           (let [[cond & options] options
                                 cond (or cond {})]
                             (apply congo/fetch-count collection :where cond options)))
+                    :doc "returns the number of rows that match the query. a :where map may be provided as the first option"
+                    :arglists '([& options])
                     :name "find-count"}
 
         ;; TODO: only the fields being set should be validated
@@ -306,7 +322,8 @@
                                                             :return-new? true
                                                             :upsert? false)
                                     "Expected result, got nil"))
-
+                     :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
+                     :arglists '([row new-field])
                      :input-transients transients
                      :input-ref use-refs
                      :output-ref use-refs
@@ -321,6 +338,8 @@
                                                       :return-new? true
                                                       :upsert? false)
                               "Expected result, got nil"))
+               :doc "pushes a new value on to the mongo array in field"
+               :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense
                :output-ref use-refs
                :keywords keywords
@@ -333,6 +352,8 @@
                                                       :return-new? true
                                                       :upsert? false)
                               "Expected result, got nil"))
+               :doc "pulls a value from the mongo array in field"
+               :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense
                :output-ref use-refs
                :keywords keywords
@@ -346,6 +367,8 @@
 
         ;; TODO: replace! should always be validated
         replace! {:fn replace!-fn
+                  :doc "replaces the row with id id with new-row. Potential race conditions if this row has been updated in another thread/process"
+                  :arglists '([id new-row])
                   :input-transients transients
                   :input-ref use-refs
                   :output-ref use-refs
@@ -355,6 +378,8 @@
 
         ;; TODO: save! should always be validated
         save! {:fn (fn [current] (replace!-fn current current))
+               :doc "save row in the DB. Row must contain an :_id field"
+               :arglists '([row])
                :input-transients transients
                :input-ref use-refs
                :output-ref use-refs
