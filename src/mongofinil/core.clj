@@ -247,15 +247,15 @@
                      :name "find-by-ids"}
 
         ;;; given conditions, find objects which match
-        find {:fn (fn [& options]
-                    (let [[cond & options] options
-                          cond (or cond {})]
-                      (apply congo/fetch collection :where cond options)))
-              :output-ref use-refs
-              :keywords keywords
-              :returns-list true
-              :output-defaults defaults
-              :name "find"}
+        where {:fn (fn [& options]
+                     (let [[cond & options] options
+                           cond (or cond {})]
+                       (apply congo/fetch collection :where cond options)))
+               :output-ref use-refs
+               :keywords keywords
+               :returns-list true
+               :output-defaults defaults
+               :name "where"}
 
         ;;; given conditions, find the first object which matches
         find-one {:fn (fn [& options]
@@ -364,7 +364,7 @@
 
     [valid? validate!
      find-by-id find-by-ids
-     find find-one
+     where find-one
      all
      nu create!
      find-count

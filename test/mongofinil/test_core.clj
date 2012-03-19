@@ -178,21 +178,21 @@
     (count result) => 2
     result => (contains [(contains {:x 5 :y 6}) (contains {:y 7 :z 8})])))
 
-(fact "find works"
-  (find {:x 5}) => (list)
+(fact "where works"
+  (where {:x 5}) => (list)
 
   (create! {:x 5 :y 6})
-  (-> {:x 5} find first) => (contains {:x 5 :y 6})
-  (find {:x 6}) => (list)
+  (-> {:x 5} where first) => (contains {:x 5 :y 6})
+  (where {:x 6}) => (list)
 
   (create! {:y 7 :z 8})
-  (let [result (find {:x 5 :y 6})]
+  (let [result (where {:x 5 :y 6})]
     result => seq?
     (count result) => 1
     (first result) => (contains {:x 5 :y 6}))
 
   ;; check defaults
-  (count (find {:dx 5})) => 2)
+  (count (where {:dx 5})) => 2)
 
 (fact "`all and :keywords work together"
   (create! {:kw "state"})

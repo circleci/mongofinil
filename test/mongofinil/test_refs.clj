@@ -180,21 +180,21 @@
     (-> result first deref) => (contains {:x 5 :y 6})
     (-> result last deref) => (contains {:y 7 :z 8})))
 
-(fact "find works"
-  (find {:x 5}) => (list)
+(fact "where works"
+  (where {:x 5}) => (list)
 
   (create! {:x 5 :y 6})
-  (-> {:x 5} find first deref) => (contains {:x 5 :y 6})
-  (find {:x 6}) => (list)
+  (-> {:x 5} where first deref) => (contains {:x 5 :y 6})
+  (where {:x 6}) => (list)
 
   (create! {:y 7 :z 8})
-  (let [result (find {:x 5 :y 6})]
+  (let [result (where {:x 5 :y 6})]
     result => seq?
     (count result) => 1
     @(first result) => (contains {:x 5 :y 6}))
 
   ;; check defaults
-  (count (find {:dx 5})) => 2)
+  (count (where {:dx 5})) => 2)
 
 
 ;.;. For every disciplined effort, there is a multiple reward. -- Rohn
