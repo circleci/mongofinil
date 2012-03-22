@@ -65,7 +65,8 @@
    output? (fn [& args]
              (let [results (apply f args)]
                (throw-if-not (seq? results) "expected seq")
-               (map ref results)))
+               (map #(when %
+                       (ref %)) results)))
    input? (fn [& args]
             (throw-if-not (-> args first ref?) "Expecting ref, got %s" (first args))
             (apply f @(first args) (rest args)))

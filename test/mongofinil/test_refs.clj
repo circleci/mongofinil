@@ -75,11 +75,11 @@
     (resolve 'find-one-by-y!) => nil
 
     ;; empty
-    @(find-one-by-x 3) => nil
-    @(find-one-by-w 2) => nil
+    (find-one-by-x 3) => nil
+    (find-one-by-w 2) => nil
     (find-by-w 2) => '()
-    @(find-one-by-x! 3) => (throws Exception "Couldn't find row with :x=3 on collection :xs")
-    @(find-one-by-w! 2) => (throws Exception "Couldn't find row with :w=2 on collection :xs")))
+    (find-one-by-x! 3) => (throws Exception "Couldn't find row with :x=3 on collection :xs")
+    (find-one-by-w! 2) => (throws Exception "Couldn't find row with :w=2 on collection :xs")))
 
 (fact "find-by-id works"
   (let [obj (create! {:x 5 :y 6})
@@ -101,7 +101,7 @@
   (create! {:x 5 :y 6})
   @(find-one) => (contains {:x 5 :y 6})
   @(find-one {:y 6}) => (contains {:x 5 :y 6})
-  @(find-one {:y 7}) => nil)
+  (find-one {:y 7}) => nil)
 
 (fact "keyword works"
   @(create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
@@ -196,12 +196,13 @@
   ;; check defaults
   (count (where {:dx 5})) => 2)
 
-
-;.;. For every disciplined effort, there is a multiple reward. -- Rohn
 (fact "`all and :keywords work together"
   (create! {:kw "state"})
   (-> (all) first deref :kw) => :state)
 
+(fact "find doesn't return refs pointing at nil"
+  (find-one {:x :bogus}) => nil
+  (seq (where {:x :bogus})) => nil)
 
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})
