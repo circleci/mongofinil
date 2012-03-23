@@ -124,9 +124,8 @@
 (fact "defaults work in order"
   (create! {:x 11}) => (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 11}))
 
-(fact "no nil defaults"
-  (create! {:x 5}) =not=> (contains {:y anything}))
-
+(fact "defaults apply to nil"
+  (create! {:x 5}) => (contains {:y nil}))
 
 (fact "transient causes things not to be saved to the DB"
   (create! {:disx 5 :x 12}) => (contains {:disx 5})
@@ -200,7 +199,7 @@
 
 (fact "save! works"
   (let [row (create! {:x 7})
-        row (merge {:y 45 :kw :g} row)
+        row (merge row {:y 45 :kw :g})
         saved (save! row)]
     saved => (contains {:y 45 :kw :g})
 

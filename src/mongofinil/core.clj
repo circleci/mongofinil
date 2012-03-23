@@ -80,12 +80,11 @@
       (throw-if-not (map? row) "Expected a hash, got %s" row)
       (reduce (fn [r d]
                 (let [[k v] d]
-                  (if v
-                    (assoc r k (cond
-                                (contains? r k) (get r k)
-                                (fn? v) (v r)
-                                :else v))
-                    r)))
+                  (assoc r k
+                         (cond
+                          (contains? r k) (get r k)
+                          (fn? v) (v r)
+                          :else v))))
               row defaults))))
 
 (defn wrap-output-defaults
