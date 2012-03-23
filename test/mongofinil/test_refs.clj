@@ -203,6 +203,20 @@
   (find-one {:x :bogus}) => nil
   (seq (where {:x :bogus})) => nil)
 
+(fact "push! works"
+  (let [orig (create! {:a []})
+        new (push! orig :a "b")
+        refound (find-one)]
+    (-> @new :a ) => ["b"]
+    (-> @refound :a) => ["b"]))
+
+(fact "pull! works"
+    (let [orig (create! {:a ["a" "b" "c"]})
+          new (pull! orig :a "b")
+          refound (find-one)]
+    (-> @new :a) => ["a" "c"]
+    (-> @refound :a) => ["a" "c"]))
+
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})
              (find-by-x 55) => (contains {:disx 55}))

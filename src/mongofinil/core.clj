@@ -341,6 +341,7 @@
                :doc "pushes a new value on to the mongo array in field"
                :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense
+               :input-ref use-refs
                :output-ref use-refs
                :keywords keywords
                :name "push!"}
@@ -355,6 +356,7 @@
                :doc "pulls a value from the mongo array in field"
                :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense
+               :input-ref use-refs
                :output-ref use-refs
                :keywords keywords
                :name "pull!"}
