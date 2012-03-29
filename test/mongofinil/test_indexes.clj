@@ -17,3 +17,13 @@
   (congo/add-index! :xs [:x])
   (with-out-str (core/defmodel :xs :fields [{:name :x :findable true}]))
   => "")
+
+(fact "with unique index, we get no warning"
+  (congo/add-index! :xs [:x] :unique true)
+  (with-out-str (core/defmodel :xs :fields [{:name :x :findable true}]))
+  => "")
+
+(fact "with reverse index, we get no warning"
+  (congo/add-index! :xs [[:x -1]])
+  (with-out-str (core/defmodel :xs :fields [{:name :x :findable true}]))
+  => "")

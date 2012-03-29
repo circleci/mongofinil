@@ -408,7 +408,7 @@
         (fn [i]
           (let [key (get i "key")
                 m (congo-coerce/coerce key [:mongo :clojure])]
-            (= m {(keyword name) 1}))))
+            ((keyword name) m))))
        boolean))
 
 (defn create-col-function [collection field defaults transients use-refs keywords]
