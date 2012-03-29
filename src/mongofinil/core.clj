@@ -399,6 +399,18 @@
      replace! save!
      push! pull!]))
 
+(defn has-index?
+  "Returns a boolean indicating if the collection has an index with that name.
+  Note that each call is O(N) on the number of indexes in the collection"
+  [collection name]
+  (->> (congo/get-indexes collection)
+       (some
+        (fn [i]
+          (let [key (get i "key")
+                m (congo-coerce/coerce key [:mongo :clojure])]
+            (= m {(keyword name) 1}))))
+       boolean))
+
 (defn create-col-function [collection field defaults transients use-refs keywords]
   (let [{:keys [findable default validators name required transient foreign]} field
 
@@ -436,9 +448,14 @@
                         :output-ref use-refs
                         :keywords keywords
                         :name (format "find-one-by-%s!" (clojure.core/name name))}]
-    (if findable
-      [find-by-X find-by-X! find-one-by-X find-one-by-X!]
-      [])))
+    (when findable
+      (let [indexes (congo/get-indexes collection)]
+
+        ;; check that there is an index on this field
+        (when-not (has-index? collection name)
+          (println "Missing index for" name "in" collection))
+
+        [find-by-X find-by-X! find-one-by-X find-one-by-X!]))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
