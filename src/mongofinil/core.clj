@@ -1,12 +1,12 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
 
-  (:require [somnium.congomongo :as congo])
-  (:require [somnium.congomongo.coerce :as congo-coerce])
+  (:require [somnium.congomongo :as congo]
+            [somnium.congomongo.coerce :as congo-coerce]
+            [mongofinil.validation :as mv]
+            [mongofinil.validation-helpers :as mvh])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
-  (:require [mongofinil.validation :as mv])
-  (:require [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId))
 
 
