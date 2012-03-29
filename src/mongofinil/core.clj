@@ -387,7 +387,31 @@
                :output-ref use-refs
                :keywords keywords
                :validate-input validators
-               :name "save!"}]
+               :name "save!"}
+
+        ;; Returns a boolean indicating if the collection has an index with that
+        ;; name. Note that each call is O(N) on the number of indexes in the
+        ;; collection
+        has-index? (fn [collection indices name]
+                     (->> indices
+                          (some
+                           (fn [i]
+                             (let [key (get i "key")
+                                   m (congo-coerce/coerce key [:mongo :clojure])]
+                               ((keyword name) m))))
+                          boolean))
+
+
+        warn-indexes! {:fn (fn []
+                             (let [indices (congo/get-indexes collection)]
+                               (doseq [f field-defs]
+                                 (when (:findable f)
+                                   (when-not (has-index? collection indices (:name f))
+                                     (println (format "Missing index for %s in %s"
+                                                      (:name f)
+                                                      collection)))))))
+                       :name "warn-indexes!"
+                       :doc "Print warnings if findable fields don't have indexes defined"}]
 
     [valid? validate!
      find-by-id find-by-ids
@@ -397,19 +421,8 @@
      find-count
      set-fields!
      replace! save!
+     warn-indexes!
      push! pull!]))
-
-(defn has-index?
-  "Returns a boolean indicating if the collection has an index with that name.
-  Note that each call is O(N) on the number of indexes in the collection"
-  [collection name]
-  (->> (congo/get-indexes collection)
-       (some
-        (fn [i]
-          (let [key (get i "key")
-                m (congo-coerce/coerce key [:mongo :clojure])]
-            ((keyword name) m))))
-       boolean))
 
 (defn create-col-function [collection field defaults transients use-refs keywords]
   (let [{:keys [findable default validators name required transient foreign]} field
@@ -449,13 +462,8 @@
                         :keywords keywords
                         :name (format "find-one-by-%s!" (clojure.core/name name))}]
     (when findable
-      (let [indexes (congo/get-indexes collection)]
-
-        ;; check that there is an index on this field
-        (when-not (has-index? collection name)
-          (println "Missing index for" name "in" collection))
-
-        [find-by-X find-by-X! find-one-by-X find-one-by-X!]))))
+      ;; check that there is an index on this field
+      [find-by-X find-by-X! find-one-by-X find-one-by-X!])))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
