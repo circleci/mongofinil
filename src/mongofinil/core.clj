@@ -4,7 +4,9 @@
   (:require [somnium.congomongo :as congo]
             [somnium.congomongo.coerce :as congo-coerce]
             [mongofinil.validation :as mv]
-            [mongofinil.validation-helpers :as mvh])
+            [mongofinil.validation-helpers :as mvh]
+            [clj-time.core :as time]
+            [clojure.contrib.string :as string2])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId))
@@ -181,6 +183,19 @@
         results
         (first results)))))
 
+(defn wrap-profile
+  [f time-in-millis which]
+  (fn [& args]
+    (if-not time-in-millis
+      (apply f args)
+      (let [start (time/now)
+            result (apply f args)
+            stop (time/now)
+            msecs (time/in-msecs (time/interval start stop))]
+        (when (> msecs time-in-millis)
+          (println (format "slow %s query (%dms): (%s %s)" which msecs f (string2/take 150 (str args)))))
+        result))))
+
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
@@ -194,16 +209,19 @@
                   input-transients
                   validate-input
                   keywords
+                  profile
                   returns-list]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
                 input-transients nil
                 keywords nil
+                profile nil
                 validate-input false
                 returns-list false}}
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
+          (wrap-profile profile "inner")
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
           ;; always run before transient so that you can be required and transient
@@ -213,6 +231,7 @@
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
+          (wrap-profile profile "outer")
           (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 
@@ -220,7 +239,7 @@
 ;;; Generate the function templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords]
+(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords profile]
   (let [validators (into row-validators (col-validators field-defs))
 
         valid? {:fn (fn [row] (mv/valid? validators row))
@@ -239,7 +258,8 @@
                     :arglists '([id])
                     :output-ref use-refs
                     :keywords keywords
-                    :name "find-by-id"}
+                    :name "find-by-id"
+                    :profile profile}
 
         ;;; given a list of keys, return the objects with those keys
         find-by-ids {:fn (fn [ids & options]
@@ -250,7 +270,8 @@
                      :output-ref use-refs
                      :keywords keywords
                      :returns-list true
-                     :name "find-by-ids"}
+                     :name "find-by-ids"
+                     :profile profile}
 
         ;;; given conditions, find objects which match
         where {:fn (fn [& options]
@@ -263,7 +284,8 @@
                :keywords keywords
                :returns-list true
                :output-defaults defaults
-               :name "where"}
+               :name "where"
+               :profile profile}
 
         ;;; given conditions, find the first object which matches
         find-one {:fn (fn [& options]
@@ -275,7 +297,8 @@
                   :output-ref use-refs
                   :keywords keywords
                   :output-defaults defaults
-                  :name "find-one"}
+                  :name "find-one"
+                  :profile profile}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
              :doc "returns all rows. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
@@ -284,7 +307,8 @@
              :keywords keywords
              :returns-list true
              :output-defaults defaults
-             :name "all"}
+             :name "all"
+             :profile profile}
 
         nu-fn identity
         nu {:fn nu-fn
@@ -293,7 +317,8 @@
             :input-transients transients
             :validate-input validators
             :keywords keywords
-            :name "nu"}
+            :name "nu"
+            :profile profile}
 
         create! {:fn (fn [val]
                        (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
@@ -304,7 +329,8 @@
                  :input-transients transients
                  :validate-input validators
                  :keywords keywords
-                 :name "create!"}
+                 :name "create!"
+                 :profile profile}
 
         find-count {:fn (fn [& options]
                           (let [[cond & options] options
@@ -312,7 +338,8 @@
                             (apply congo/fetch-count collection :where cond options)))
                     :doc "returns the number of rows that match the query. a :where map may be provided as the first option"
                     :arglists '([& options])
-                    :name "find-count"}
+                    :name "find-count"
+                    :profile profile}
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
@@ -329,7 +356,8 @@
                      :output-ref use-refs
                      :keywords keywords
                      ;; validate-input validators
-                     :name "set-fields!"}
+                     :name "set-fields!"
+                     :profile profile}
 
         push! {:fn (fn [old field value]
                      (assert! (congo/fetch-and-modify collection
@@ -344,7 +372,8 @@
                :input-ref use-refs
                :output-ref use-refs
                :keywords keywords
-               :name "push!"}
+               :name "push!"
+               :profile profile}
 
         pull! {:fn (fn [old field value]
                      (assert! (congo/fetch-and-modify collection
@@ -359,7 +388,8 @@
                :input-ref use-refs
                :output-ref use-refs
                :keywords keywords
-               :name "pull!"}
+               :name "pull!"
+               :profile profile}
 
         replace!-fn (fn [id new-obj]
                       (congo/update! collection {:_id (coerce-id id)} new-obj :upsert false)
@@ -376,7 +406,8 @@
                   :output-ref use-refs
                   :keywords keywords
                   ;;: validate-input validators
-                  :name "replace!"}
+                  :name "replace!"
+                  :profile profile}
 
         ;; TODO: save! should always be validated
         save! {:fn (fn [current] (replace!-fn current current))
@@ -387,31 +418,8 @@
                :output-ref use-refs
                :keywords keywords
                :validate-input validators
-               :name "save!"}
-
-        ;; Returns a boolean indicating if the collection has an index with that
-        ;; name. Note that each call is O(N) on the number of indexes in the
-        ;; collection
-        has-index? (fn [collection indices name]
-                     (->> indices
-                          (some
-                           (fn [i]
-                             (let [key (get i "key")
-                                   m (congo-coerce/coerce key [:mongo :clojure])]
-                               ((keyword name) m))))
-                          boolean))
-
-
-        warn-indexes! {:fn (fn []
-                             (let [indices (congo/get-indexes collection)]
-                               (doseq [f field-defs]
-                                 (when (:findable f)
-                                   (when-not (has-index? collection indices (:name f))
-                                     (println (format "Missing index for %s in %s"
-                                                      (:name f)
-                                                      collection)))))))
-                       :name "warn-indexes!"
-                       :doc "Print warnings if findable fields don't have indexes defined"}]
+               :name "save!"
+               :profile profile}]
 
     [valid? validate!
      find-by-id find-by-ids
@@ -421,10 +429,9 @@
      find-count
      set-fields!
      replace! save!
-     warn-indexes!
      push! pull!]))
 
-(defn create-col-function [collection field defaults transients use-refs keywords]
+(defn create-col-function [collection field defaults transients use-refs keywords profile]
   (let [{:keys [findable default validators name required transient foreign]} field
 
         find-one-by-X-fn (fn [val & options]
@@ -437,12 +444,14 @@
                    :output-defaults defaults
                    :returns-list true
                    :keywords keywords
+                   :profile profile
                    :name (format "find-by-%s" (clojure.core/name name))}
 
         find-one-by-X {:fn find-one-by-X-fn
                        :output-ref use-refs
                        :output-defaults defaults
                        :keywords keywords
+                       :profile profile
                        :name (format "find-one-by-%s" (clojure.core/name name))}
 
         find-by-X! {:fn (fn [val & options]
@@ -452,6 +461,7 @@
                     :returns-list true
                     :output-ref use-refs
                     :keywords keywords
+                    :profile profile
                     :name (format "find-by-%s!" (clojure.core/name name))}
 
         find-one-by-X! {:fn (fn [val & options]
@@ -460,6 +470,7 @@
                         :output-defaults defaults
                         :output-ref use-refs
                         :keywords keywords
+                        :profile profile
                         :name (format "find-one-by-%s!" (clojure.core/name name))}]
     (when findable
       ;; check that there is an index on this field
@@ -487,15 +498,15 @@
 
 (defn defmodel
   "Define a DB model from its fields"
-  [collection & {:keys [validators fields use-refs]
+  [collection & {:keys [validators fields use-refs profile]
                  :or {validators [] fields [] use-refs false}
                  :as attrs}]
   (let [fields (into [] (eager-map canonicalize-field-defs fields))
         defaults (into [] (eager-map (fn [f] [(:name f) (:default f)]) fields))
         transients (into [] (eager-map :name (filter :transient fields)))
         keywords (into #{} (eager-map :name (filter :keyword fields)))
-        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords)
-        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords)))]
+        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords profile)
+        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords profile)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)))))
 
 

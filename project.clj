@@ -1,4 +1,4 @@
-(defproject mongofinil "0.1.17"
+(defproject mongofinil "0.1.18"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/clojure-contrib "1.3-b7125d79301cbc1ce44b24c5b29e57685202041a"]
@@ -8,6 +8,8 @@
 
                  ;; Misc
                  [swank-clojure "1.3.4"]
+                 [clj-time "0.3.7"]
+                 [org.clojure/tools.logging "0.2.3"]
 
                  [midje "1.3.1"]]
 
