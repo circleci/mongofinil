@@ -184,7 +184,7 @@
         (first results)))))
 
 (defn wrap-profile
-  [f time-in-millis which]
+  [f time-in-millis ns name]
   (fn [& args]
     (if-not time-in-millis
       (apply f args)
@@ -193,7 +193,7 @@
             stop (time/now)
             msecs (time/in-msecs (time/interval start stop))]
         (when (> msecs time-in-millis)
-          (println (format "slow %s query (%dms): (%s %s)" which msecs f (string2/take 150 (str args)))))
+          (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (string2/take 150 (str args)))))
         result))))
 
 (defn add-functions
@@ -221,7 +221,7 @@
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
-          (wrap-profile profile "inner")
+          (wrap-profile profile ns name)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
           ;; always run before transient so that you can be required and transient
@@ -231,7 +231,6 @@
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
-          (wrap-profile profile "outer")
           (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 

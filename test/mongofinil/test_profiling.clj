@@ -12,9 +12,9 @@
 
 (fact "slow operations warn"
   (let [warning (with-out-str (create! {:val 1 :x (into [] (range 5000))}))]
-    warning => #"slow inner query \(\d+ms\):"
-    warning => #"slow outer query \(\d+ms\):"))
+    warning => #"slow query \(\d+ms\):"
+    warning => #"mongofinil.test-profiling/create!"))
 
 (fact "fast operations do not warn"
   (with-out-str (create! {:val 1 :x 1}))
-  => #"")
+  => "")
