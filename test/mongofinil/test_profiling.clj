@@ -8,7 +8,7 @@
 (utils/setup-test-db)
 (utils/setup-midje)
 
-(core/defmodel :xs :fields [] :profile 1)
+(core/defmodel :xs :fields [] :profile-reads 1 :profile-writes 1)
 
 (fact "slow operations warn"
   (let [warning (with-out-str (create! {:val 1 :x (into [] (range 5000))}))]

@@ -238,7 +238,7 @@
 ;;; Generate the function templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords profile]
+(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords profile-reads profile-writes]
   (let [validators (into row-validators (col-validators field-defs))
 
         valid? {:fn (fn [row] (mv/valid? validators row))
@@ -258,7 +258,7 @@
                     :output-ref use-refs
                     :keywords keywords
                     :name "find-by-id"
-                    :profile profile}
+                    :profile profile-reads}
 
         ;;; given a list of keys, return the objects with those keys
         find-by-ids {:fn (fn [ids & options]
@@ -270,7 +270,7 @@
                      :keywords keywords
                      :returns-list true
                      :name "find-by-ids"
-                     :profile profile}
+                     :profile profile-reads}
 
         ;;; given conditions, find objects which match
         where {:fn (fn [& options]
@@ -284,7 +284,7 @@
                :returns-list true
                :output-defaults defaults
                :name "where"
-               :profile profile}
+               :profile profile-reads}
 
         ;;; given conditions, find the first object which matches
         find-one {:fn (fn [& options]
@@ -297,7 +297,7 @@
                   :keywords keywords
                   :output-defaults defaults
                   :name "find-one"
-                  :profile profile}
+                  :profile profile-reads}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
              :doc "returns all rows. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
@@ -307,7 +307,7 @@
              :returns-list true
              :output-defaults defaults
              :name "all"
-             :profile profile}
+             :profile profile-reads}
 
         nu-fn identity
         nu {:fn nu-fn
@@ -316,8 +316,7 @@
             :input-transients transients
             :validate-input validators
             :keywords keywords
-            :name "nu"
-            :profile profile}
+            :name "nu"}
 
         create! {:fn (fn [val]
                        (congo/insert! collection (merge {:_id (ObjectId.)} (nu-fn val))))
@@ -329,7 +328,7 @@
                  :validate-input validators
                  :keywords keywords
                  :name "create!"
-                 :profile profile}
+                 :profile profile-writes}
 
         find-count {:fn (fn [& options]
                           (let [[cond & options] options
@@ -338,7 +337,7 @@
                     :doc "returns the number of rows that match the query. a :where map may be provided as the first option"
                     :arglists '([& options])
                     :name "find-count"
-                    :profile profile}
+                    :profile profile-reads}
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
@@ -356,7 +355,7 @@
                      :keywords keywords
                      ;; validate-input validators
                      :name "set-fields!"
-                     :profile profile}
+                     :profile profile-writes}
 
         push! {:fn (fn [old field value]
                      (assert! (congo/fetch-and-modify collection
@@ -372,7 +371,7 @@
                :output-ref use-refs
                :keywords keywords
                :name "push!"
-               :profile profile}
+               :profile profile-writes}
 
         pull! {:fn (fn [old field value]
                      (assert! (congo/fetch-and-modify collection
@@ -388,7 +387,7 @@
                :output-ref use-refs
                :keywords keywords
                :name "pull!"
-               :profile profile}
+               :profile profile-writes}
 
         replace!-fn (fn [id new-obj]
                       (congo/update! collection {:_id (coerce-id id)} new-obj :upsert false)
@@ -406,7 +405,7 @@
                   :keywords keywords
                   ;;: validate-input validators
                   :name "replace!"
-                  :profile profile}
+                  :profile profile-writes}
 
         ;; TODO: save! should always be validated
         save! {:fn (fn [current] (replace!-fn current current))
@@ -418,7 +417,7 @@
                :keywords keywords
                :validate-input validators
                :name "save!"
-               :profile profile}]
+               :profile profile-writes}]
 
     [valid? validate!
      find-by-id find-by-ids
@@ -430,7 +429,7 @@
      replace! save!
      push! pull!]))
 
-(defn create-col-function [collection field defaults transients use-refs keywords profile]
+(defn create-col-function [collection field defaults transients use-refs keywords profile-reads profile-writes]
   (let [{:keys [findable default validators name required transient foreign]} field
 
         find-one-by-X-fn (fn [val & options]
@@ -443,14 +442,14 @@
                    :output-defaults defaults
                    :returns-list true
                    :keywords keywords
-                   :profile profile
+                   :profile profile-reads
                    :name (format "find-by-%s" (clojure.core/name name))}
 
         find-one-by-X {:fn find-one-by-X-fn
                        :output-ref use-refs
                        :output-defaults defaults
                        :keywords keywords
-                       :profile profile
+                       :profile profile-reads
                        :name (format "find-one-by-%s" (clojure.core/name name))}
 
         find-by-X! {:fn (fn [val & options]
@@ -460,7 +459,7 @@
                     :returns-list true
                     :output-ref use-refs
                     :keywords keywords
-                    :profile profile
+                    :profile profile-reads
                     :name (format "find-by-%s!" (clojure.core/name name))}
 
         find-one-by-X! {:fn (fn [val & options]
@@ -469,7 +468,7 @@
                         :output-defaults defaults
                         :output-ref use-refs
                         :keywords keywords
-                        :profile profile
+                        :profile profile-reads
                         :name (format "find-one-by-%s!" (clojure.core/name name))}]
     (when findable
       ;; check that there is an index on this field
@@ -497,15 +496,15 @@
 
 (defn defmodel
   "Define a DB model from its fields"
-  [collection & {:keys [validators fields use-refs profile]
+  [collection & {:keys [validators fields use-refs profile-reads profile-writes]
                  :or {validators [] fields [] use-refs false}
                  :as attrs}]
   (let [fields (into [] (eager-map canonicalize-field-defs fields))
         defaults (into [] (eager-map (fn [f] [(:name f) (:default f)]) fields))
         transients (into [] (eager-map :name (filter :transient fields)))
         keywords (into #{} (eager-map :name (filter :keyword fields)))
-        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords profile)
-        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords profile)))]
+        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords profile-reads profile-writes)
+        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords profile-reads profile-writes)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)))))
 
 
