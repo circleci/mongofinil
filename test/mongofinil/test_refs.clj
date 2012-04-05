@@ -2,8 +2,9 @@
   (:use midje.sweet)
   (:require [somnium.congomongo :as congo])
   (:require [mongofinil.core :as core])
+  (:require [mongofinil.testing-utils :as utils])
   (:use [mongofinil.helpers :only (ref?)])
-  (:require [mongofinil.testing-utils :as utils]))
+  (:import org.bson.types.ObjectId))
 
 (utils/setup-test-db)
 (utils/setup-midje)
@@ -21,8 +22,6 @@
            {:name :dy :default (fn [b] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
 
-           {:name :disx :transient true}
-
            ;; ordered defaults
            {:name :def1 :default 5}
            {:name :def2 :default (fn [b] (inc (:def1 b)))}
@@ -34,6 +33,9 @@
 
            ;; keyword
            {:name :kw :keyword true}
+
+           ;; unique
+           {:name :unique1} ;; for congo interop, not a feature
 
            ;; validation
            {:name :valid-pos :default 5 :validator (fn [row] (when-not (pos? (:valid-pos row)) "Should be positive"))}]
@@ -100,8 +102,8 @@
 (fact "find-one works"
   (create! {:x 5 :y 6})
   @(find-one) => (contains {:x 5 :y 6})
-  @(find-one {:y 6}) => (contains {:x 5 :y 6})
-  (find-one {:y 7}) => nil)
+  @(find-one :where {:y 6}) => (contains {:x 5 :y 6})
+  (find-one :where {:y 7}) => nil)
 
 (fact "keyword works"
   @(create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
@@ -109,7 +111,10 @@
 
 
 (fact "apply-defaults works"
-  (core/apply-defaults [[ :x 5] [:y (fn [v] 6)] [:z 10]] {:z 9}) => (contains {:x 5 :y 6 :z 9}))
+  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} nil) => (just {:x 5 :y 6 :z 9}))
+
+(fact "apply-defaults works with only"
+  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} [:z]) => (just {:z 9}))
 
 
 (fact "default works on creation"
@@ -195,27 +200,55 @@
   ;; check defaults
   (count (where {:dx 5})) => 2)
 
+(fact "only works"
+  (create! {:x 5 :y 6 :z 7})
+  @(find-one :only [:x]) => (just {:x 5 :_id anything}))
+
 (fact "`all and :keywords work together"
   (create! {:kw "state"})
   (-> (all) first deref :kw) => :state)
 
-(fact "find doesn't return refs pointing at nil"
-  (find-one {:x :bogus}) => nil
-  (seq (where {:x :bogus})) => nil)
+(fact "save! works"
+  (let [row (create! {:x 7})]
+    (dosync (alter row merge {:y 45 :kw :g}))
+    (let [saved (save! row)]
+      @saved => (contains {:y 45 :kw :g})
+      @(find-one) => (contains {:y 45 :kw :g}))))
+
+
+(fact "validators cause save to fail coreectly")
+(fact "validators dont prevent valid objects from saving")
+
+(fact "validators cause set-fields to fail coreectly")
+(fact "validators dont prevent valid objects from having their fields set")
+
+(fact "validators cause replace! to fail coreectly")
+(fact "validators dont prevent valid objects from being replaced")
+
+
+(fact "find-by-id has an error with an invalid id causes an error"
+  (find-by-id "") => (throws Exception #"Got empty string")
+  (find-by-id nil) => (throws Exception "Expected id, got nil")
+
+  (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
+  (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
 
 (fact "push! works"
   (let [orig (create! {:a []})
         new (push! orig :a "b")
         refound (find-one)]
-    (-> @new :a ) => ["b"]
-    (-> @refound :a) => ["b"]))
+    (:a @orig) => ["b"] ; push changed it
+    (:a @new) => ["b"]
+    (:a @refound) => ["b"]))
 
 (fact "pull! works"
     (let [orig (create! {:a ["a" "b" "c"]})
-          new (pull! orig :a "b")
-          refound (find-one)]
-    (-> @new :a) => ["a" "c"]
-    (-> @refound :a) => ["a" "c"]))
+        new (pull! orig :a "b")
+        refound (find-one)]
+    (:a @orig) => ["a" "c"] ; changed by push
+    (:a @new) => ["a" "c"]
+    (:a @refound) => ["a" "c"]))
+
 
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})
@@ -225,7 +258,7 @@
 
 
 (future-fact "incorrectly named attributes are caught"
-  (eval `(core/defmodel :ys :fields [{:a :b}])) => throws
-  (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => throws)
+             (eval `(core/defmodel :ys :fields [{:a :b}])) => (throws Exception)
+             (eval `(core/defmodel :ys :fields [{:name :b :unexpected-field :y}])) => (throws Exception))
 
 (future-fact "calling functions with the wrong signatures should give slightly useful error messages")

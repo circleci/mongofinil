@@ -75,31 +75,44 @@
    :else f))
 
 (defn apply-defaults
-  [defaults row]
+  [defaults row only]
   (if (empty? defaults)
     row
     (do
       (throw-if-not (map? row) "Expected a hash, got %s" row)
       (reduce (fn [r d]
-                (let [[k v] d]
-                  (assoc r k
-                         (cond
-                          (contains? r k) (get r k)
-                          (fn? v) (v r)
-                          :else v))))
+                (let [[k v] d
+                      only (when only (set only))]
+                  (if (and only (not (contains? only k))) ; dont apply
+                                        ; defaults if not in the 'only set
+                    r
+                    (assoc r k
+                           (cond
+                            (contains? r k) (get r k)
+                            (fn? v) (v r)
+                            :else v)))))
               row defaults))))
+
+(defn extract-congo-argument
+  "Given an argument list, extract the keyword argument named 'key'"
+  [args key]
+  (let [args (if (-> args count odd?) (rest args) args)
+        map (apply hash-map args)]
+    (get map key)))
+
 
 (defn wrap-output-defaults
   "Wrap f to add default output values for the result of f"
   [f defaults]
   (if defaults
     (fn [& args]
-      (let [results (apply f args)]
+      (let [results (apply f args)
+            only (extract-congo-argument args :only)]
         (throw-if-not (seq? results) "expected seq")
         (map
          (fn [result]
            (when result
-             (apply-defaults defaults result)))
+             (apply-defaults defaults result only)))
          results)))
     f))
 
@@ -137,7 +150,7 @@
   (if defaults
     (fn [& args]
       (let [args (apply-to-last
-                  (fn [val] (apply-defaults defaults val)) args)]
+                  (fn [val] (apply-defaults defaults val nil)) args)]
         (apply f args)))
     f))
 
@@ -252,7 +265,8 @@
                    :name "validate!"}
 
         ;;; given a single key, return the object with that key
-        find-by-id {:fn (fn [id] (congo/fetch-by-id collection (coerce-id id)))
+        find-by-id {:fn (fn [id & options]
+                          (apply congo/fetch-by-id collection (coerce-id id) options))
                     :output-defaults defaults
                     :arglists '([id])
                     :output-ref use-refs
@@ -288,11 +302,9 @@
 
         ;;; given conditions, find the first object which matches
         find-one {:fn (fn [& options]
-                        (let [[cond & options] options
-                              cond (or cond {})]
-                          (apply congo/fetch-one collection :where cond options)))
-                  :doc "returns the first row that matches the where clause. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
-                  :arglists '([where & options])
+                        (apply congo/fetch-one collection options))
+                  :doc "returns the first row. options are kw arguments that congo understands, such as :limit, :where and :sort"
+                  :arglists '([& options])
                   :output-ref use-refs
                   :keywords keywords
                   :output-defaults defaults
@@ -300,7 +312,7 @@
                   :profile profile-reads}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
-             :doc "returns all rows. 'where' is a congo :where map, options are kw arguments that congo understands, such as :limit and :sort"
+             :doc "returns all rows. 'options' are kw arguments that congo understands, such as :limit, :where and :sort"
              :arglists '([& options])
              :output-ref use-refs
              :keywords keywords
@@ -331,10 +343,8 @@
                  :profile profile-writes}
 
         find-count {:fn (fn [& options]
-                          (let [[cond & options] options
-                                cond (or cond {})]
-                            (apply congo/fetch-count collection :where cond options)))
-                    :doc "returns the number of rows that match the query. a :where map may be provided as the first option"
+                          (apply congo/fetch-count collection options))
+                    :doc "returns the number of rows, to be used with options like :where"
                     :arglists '([& options])
                     :name "find-count"
                     :profile profile-reads}

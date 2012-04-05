@@ -100,8 +100,8 @@
 (fact "find-one works"
   (create! {:x 5 :y 6})
   (find-one) => (contains {:x 5 :y 6})
-  (find-one {:y 6}) => (contains {:x 5 :y 6})
-  (find-one {:y 7}) => nil)
+  (find-one :where {:y 6}) => (contains {:x 5 :y 6})
+  (find-one :where {:y 7}) => nil)
 
 (fact "keyword works"
   (create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
@@ -109,7 +109,10 @@
 
 
 (fact "apply-defaults works"
-  (core/apply-defaults [[ :x 5] [:y (fn [v] 6)] [:z 10]] {:z 9}) => (contains {:x 5 :y 6 :z 9}))
+  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} nil) => (just {:x 5 :y 6 :z 9}))
+
+(fact "apply-defaults works with only"
+  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} [:z]) => (just {:z 9}))
 
 
 (fact "default works on creation"
@@ -193,6 +196,10 @@
   ;; check defaults
   (count (where {:dx 5})) => 2)
 
+(fact "only works"
+  (create! {:x 5 :y 6 :z 7})
+  (find-one :only [:x]) => (just {:x 5 :_id anything}))
+
 (fact "`all and :keywords work together"
   (create! {:kw "state"})
   (-> (all) first :kw) => :state)
@@ -241,27 +248,27 @@
 
 
 ;;; This works in congomongo 1.9
-(future-fact "calling create twice on a row with an index should raise an error"
-  (let [obj {:unique1 "abc@abc.com"}
-        inserted (congo/insert! :xs (assoc obj :_id (ObjectId.)))]
+;; (future-fact "calling create twice on a row with an index should raise an error"
+;;   (let [obj {:unique1 "abc@abc.com"}
+;;         inserted (congo/insert! :xs (assoc obj :_id (ObjectId.)))]
 
-    (congo/add-index! :xs [:unique1] :unique true)
+;;     (congo/add-index! :xs [:unique1] :unique true)
 
-    ;; check the index works
-    (find-count) => 1
-    (congo/insert! :xs obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
-    (find-count) => 1
+;;     ;; check the index works
+;;     (find-count) => 1
+;;     (congo/insert! :xs obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
+;;     (find-count) => 1
 
-    ;; check we raise an error
-    (create! obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
-    (find-count) => 1
+;;     ;; check we raise an error
+;;     (create! obj) => (throws com.mongodb.MongoException$DuplicateKey #"duplicate key error")
+;;     (find-count) => 1
 
 
-    ;; check we can add again if the constraint is removed
-    (set-fields! inserted {:unique1 "x"})
-    (find-count) => 1
-    (create! obj) => map?
-    (find-count) => 2))
+;;     ;; check we can add again if the constraint is removed
+;;     (set-fields! inserted {:unique1 "x"})
+;;     (find-count) => 1
+;;     (create! obj) => map?
+;;     (find-count) => 2))
 
 
 (future-fact "transient doesnt stop things being loaded from the DB"
