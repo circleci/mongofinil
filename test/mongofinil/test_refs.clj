@@ -86,7 +86,7 @@
 (fact "find-by-id works"
   (let [obj (create! {:x 5 :y 6})
         id (:_id @obj)]
-    @(find-by-id obj) => (contains @obj)
+    (find-by-id obj) => obj
     @(find-by-id id) => (contains @obj)
     @(find-by-id (str id)) => (contains @obj)
     @(find-by-id (congo/object-id (str id))) => (contains @obj)))

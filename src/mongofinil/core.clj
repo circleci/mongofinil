@@ -56,7 +56,7 @@
   (cond
    (and input? output?) (fn [& args]
                           (let [first (first args)
-                                _ (throw-if-not (ref? first) "Expecting a ref, got %s" first)
+                                first (if (ref? first) first (ref first))
                                 derefed (concat [@first] (rest args))
                                 results (apply f derefed)
                                 result (last results)] ;; NOT FIRST, that returns nil
@@ -270,6 +270,7 @@
                     :output-defaults defaults
                     :arglists '([id])
                     :output-ref use-refs
+                    :input-ref use-refs
                     :keywords keywords
                     :name "find-by-id"
                     :profile profile-reads}
