@@ -301,6 +301,13 @@
                :name "where"
                :profile profile-reads}
 
+        find-count {:fn (fn [& options]
+                          (apply congo/fetch-count collection options))
+                    :doc "returns the number of rows, to be used with options like :where"
+                    :arglists '([& options])
+                    :name "find-count"
+                    :profile profile-reads}
+
         ;;; given conditions, find the first object which matches
         find-one {:fn (fn [& options]
                         (apply congo/fetch-one collection options))
@@ -342,13 +349,6 @@
                  :keywords keywords
                  :name "create!"
                  :profile profile-writes}
-
-        find-count {:fn (fn [& options]
-                          (apply congo/fetch-count collection options))
-                    :doc "returns the number of rows, to be used with options like :where"
-                    :arglists '([& options])
-                    :name "find-count"
-                    :profile profile-reads}
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
