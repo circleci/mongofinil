@@ -384,6 +384,22 @@
                :name "push!"
                :profile profile-writes}
 
+        add-to-set! {:fn (fn [old field value]
+                           (assert! (congo/fetch-and-modify collection
+                                                            {:_id (coerce-id old)}
+                                                            {:$addToSet {field value}}
+                                                            :return-new? true
+                                                            :upsert? false)
+                                    "Expected result, got nil"))
+                     :doc "pushes a new value on to the mongo array in field"
+                     :arglists '([row field value])
+                     :input-transients transients ;; TODO: this makes no sense
+                     :input-ref use-refs
+                     :output-ref use-refs
+                     :keywords keywords
+                     :name "add-to-set!"
+                     :profile profile-writes}
+
         pull! {:fn (fn [old field value]
                      (assert! (congo/fetch-and-modify collection
                                                       {:_id (coerce-id old)}
@@ -438,7 +454,7 @@
      find-count
      set-fields!
      replace! save!
-     push! pull!]))
+     push! pull! add-to-set!]))
 
 (defn create-col-function [collection field defaults transients use-refs keywords profile-reads profile-writes]
   (let [{:keys [findable default validators name required transient foreign]} field

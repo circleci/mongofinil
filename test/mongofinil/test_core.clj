@@ -246,6 +246,24 @@
     (:a new) => ["a" "c"]
     (:a refound) => ["a" "c"]))
 
+(fact "add-to-set! works"
+  (let [orig (create! {:a []})
+        new (add-to-set! orig :a "b")
+        _ (add-to-set! orig :a "b")
+        _ (add-to-set! orig :a "c")
+        _ (add-to-set! orig :a "b")
+        _ (add-to-set! orig :a "b")
+        _ (add-to-set! orig :a "b")
+        new (add-to-set! new :a "b")
+        new (add-to-set! new :a "c")
+        new (add-to-set! new :a "b")
+        new (add-to-set! new :a "b")
+        new (add-to-set! new :a "b")
+        refound (find-one)]
+    (:a orig) => []
+    (:a new) => ["b" "c"]
+    (:a refound) => ["b" "c"]))
+
 
 ;;; This works in congomongo 1.9
 ;; (future-fact "calling create twice on a row with an index should raise an error"
