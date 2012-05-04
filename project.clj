@@ -1,4 +1,4 @@
-(defproject mongofinil "0.1.23"
+(defproject mongofinil "0.1.24"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/clojure-contrib "1.3-b7125d79301cbc1ce44b24c5b29e57685202041a"]
