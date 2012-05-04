@@ -352,12 +352,15 @@
 
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
-                           (assert! (congo/fetch-and-modify collection
-                                                            {:_id (coerce-id old)}
-                                                            {:$set new-fields}
-                                                            :return-new? true
-                                                            :upsert? false)
-                                    "Expected result, got nil"))
+                           (let [new (assert! (congo/fetch-and-modify collection
+                                                                      {:_id (coerce-id old)}
+                                                                      {:$set new-fields}
+                                                                      :return-new? true
+                                                                      :upsert? false)
+                                              "Expected result, got nil")
+                                 new-fields (select-keys new (keys new-fields))]
+                             (merge old new-fields)))
+
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
                      :input-transients transients
@@ -369,12 +372,14 @@
                      :profile profile-writes}
 
         push! {:fn (fn [old field value]
-                     (assert! (congo/fetch-and-modify collection
-                                                      {:_id (coerce-id old)}
-                                                      {:$push {field value}}
-                                                      :return-new? true
-                                                      :upsert? false)
-                              "Expected result, got nil"))
+                     (let [new (assert! (congo/fetch-and-modify collection
+                                                                {:_id (coerce-id old)}
+                                                                {:$push {field value}}
+                                                                :return-new? true
+                                                                :upsert? false)
+                                        "Expected result, got nil")]
+                       (assoc old field (field new))))
+
                :doc "pushes a new value on to the mongo array in field"
                :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense
@@ -385,12 +390,13 @@
                :profile profile-writes}
 
         add-to-set! {:fn (fn [old field value]
-                           (assert! (congo/fetch-and-modify collection
-                                                            {:_id (coerce-id old)}
-                                                            {:$addToSet {field value}}
-                                                            :return-new? true
-                                                            :upsert? false)
-                                    "Expected result, got nil"))
+                           (let [new (assert! (congo/fetch-and-modify collection
+                                                                      {:_id (coerce-id old)}
+                                                                      {:$addToSet {field value}}
+                                                                      :return-new? true
+                                                                      :upsert? false)
+                                              "Expected result, got nil")]
+                             (assoc old field (field new))))
                      :doc "pushes a new value on to the mongo array in field"
                      :arglists '([row field value])
                      :input-transients transients ;; TODO: this makes no sense
@@ -401,12 +407,13 @@
                      :profile profile-writes}
 
         pull! {:fn (fn [old field value]
-                     (assert! (congo/fetch-and-modify collection
-                                                      {:_id (coerce-id old)}
-                                                      {:$pull {field value}}
-                                                      :return-new? true
-                                                      :upsert? false)
-                              "Expected result, got nil"))
+                     (let [new (assert! (congo/fetch-and-modify collection
+                                                                {:_id (coerce-id old)}
+                                                                {:$pull {field value}}
+                                                                :return-new? true
+                                                                :upsert? false)
+                                        "Expected result, got nil")]
+                       (assoc old field (field new))))
                :doc "pulls a value from the mongo array in field"
                :arglists '([row field value])
                :input-transients transients ;; TODO: this makes no sense

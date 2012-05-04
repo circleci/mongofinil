@@ -135,19 +135,22 @@
   (find-one-by-x 12) =not=> (contains {:disx 5}))
 
 
-(fact "ensure set works as planned"
+(fact "ensure set-field! works as planned"
   ;; add and check expected values
   (create! {:a "b" :c "d"})
-  (let [old (find-one)]
+  (let [old (find-one)
+        updated (merge old {:set-field-test1 1})]
     old => (contains {:a "b" :c "d"})
 
     ;; set and check expected values
-    (let [result (set-fields! old {:a "x" :e "f"})
+    (let [result (set-fields! updated {:a "x" :e "f"})
           count (find-count)
           new (find-one)]
       count => 1
-     result => new
-     new => (contains {:a "x" :c "d" :e "f"}))))
+      result => (contains new)
+      result => (contains {:set-field-test1 1})
+      new =not=> (contains {:set-field-test1 1})
+      new => (contains {:a "x" :c "d" :e "f" :dx 5 :dy 6}))))
 
 (fact "replace! works"
   (find-count) => 0
