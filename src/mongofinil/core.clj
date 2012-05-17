@@ -266,7 +266,8 @@
 
         ;;; given a single key, return the object with that key
         find-by-id {:fn (fn [id & options]
-                          (apply congo/fetch-by-id collection (coerce-id id) options))
+                          (when id
+                            (apply congo/fetch-by-id collection (coerce-id id) options)))
                     :output-defaults defaults
                     :arglists '([id])
                     :output-ref use-refs

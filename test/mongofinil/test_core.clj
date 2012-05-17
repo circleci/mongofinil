@@ -87,7 +87,8 @@
     (find-by-id obj) => (contains obj)
     (find-by-id id) => (contains obj)
     (find-by-id (str id)) => (contains obj)
-    (find-by-id (congo/object-id (str id))) => (contains obj)))
+    (find-by-id (congo/object-id (str id))) => (contains obj)
+    (find-by-id nil) => nil))
 
 (fact "find-by-ids works"
   (let [obj1 (create! {:x 5 :y 6})
@@ -228,7 +229,6 @@
 
 (fact "find-by-id has an error with an invalid id causes an error"
   (find-by-id "") => (throws Exception #"Got empty string")
-  (find-by-id nil) => (throws Exception "Expected id, got nil")
 
   (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
   (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
