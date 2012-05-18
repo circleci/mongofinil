@@ -1,8 +1,9 @@
 (ns mongofinil.test-core
-  (:use midje.sweet)
-  (:require [somnium.congomongo :as congo])
-  (:require [mongofinil.core :as core])
-  (:require [mongofinil.testing-utils :as utils])
+  (:require [somnium.congomongo :as congo]
+            [mongofinil.core :as core]
+            [mongofinil.testing-utils :as utils])
+  (:use midje.sweet
+        [clojure.core.incubator :only (-?>)])
   (:import org.bson.types.ObjectId))
 
 (utils/setup-test-db)
