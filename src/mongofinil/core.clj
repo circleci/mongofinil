@@ -209,11 +209,18 @@
           (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (string2/take 150 (str args)))))
         result))))
 
+(defn wrap-hook
+  [f hooks hook]
+  (fn [& args]
+    (let [hook-fn (get hooks hook)
+          hook-fn (or hook-fn identity)]
+      (hook-fn (apply f args)))))
+
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
   namespace"
-  [ns function-defs]
+  [ns function-defs hooks]
   (doseq [fdef function-defs]
     (let [{:keys [name fn
                   doc arglists
@@ -222,6 +229,7 @@
                   input-transients
                   validate-input
                   keywords
+                  hook
                   profile
                   returns-list]
            :or {input-ref false output-ref false
@@ -229,12 +237,14 @@
                 input-transients nil
                 keywords nil
                 profile nil
+                hook nil
                 validate-input false
                 returns-list false}}
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
+          (wrap-hook hooks hook)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
           ;; always run before transient so that you can be required and transient
@@ -349,6 +359,7 @@
                  :validate-input validators
                  :keywords keywords
                  :name "create!"
+                 :hook :update
                  :profile profile-writes}
 
         ;; TODO: only the fields being set should be validated
@@ -368,6 +379,7 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
+                     :hook :update
                      ;; validate-input validators
                      :name "set-fields!"
                      :profile profile-writes}
@@ -386,6 +398,7 @@
                :input-transients transients ;; TODO: this makes no sense
                :input-ref use-refs
                :output-ref use-refs
+               :hook :update
                :keywords keywords
                :name "push!"
                :profile profile-writes}
@@ -403,6 +416,7 @@
                      :input-transients transients ;; TODO: this makes no sense
                      :input-ref use-refs
                      :output-ref use-refs
+                     :hook :update
                      :keywords keywords
                      :name "add-to-set!"
                      :profile profile-writes}
@@ -420,6 +434,7 @@
                :input-transients transients ;; TODO: this makes no sense
                :input-ref use-refs
                :output-ref use-refs
+               :hook :update
                :keywords keywords
                :name "pull!"
                :profile profile-writes}
@@ -438,6 +453,7 @@
                   :input-ref use-refs
                   :output-ref use-refs
                   :keywords keywords
+                  :hook :update
                   ;;: validate-input validators
                   :name "replace!"
                   :profile profile-writes}
@@ -449,6 +465,7 @@
                :input-transients transients
                :input-ref use-refs
                :output-ref use-refs
+               :hook :update
                :keywords keywords
                :validate-input validators
                :name "save!"
@@ -531,8 +548,8 @@
 
 (defn defmodel
   "Define a DB model from its fields"
-  [collection & {:keys [validators fields use-refs profile-reads profile-writes]
-                 :or {validators [] fields [] use-refs false}
+  [collection & {:keys [validators fields use-refs profile-reads profile-writes hooks]
+                 :or {validators [] fields [] use-refs false hooks {}}
                  :as attrs}]
   (let [fields (into [] (eager-map canonicalize-field-defs fields))
         defaults (into [] (eager-map (fn [f] [(:name f) (:default f)]) fields))
@@ -540,7 +557,7 @@
         keywords (into #{} (eager-map :name (filter :keyword fields)))
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords profile-reads profile-writes)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords profile-reads profile-writes)))]
-    (add-functions *ns* (into [] (concat col-templates row-templates)))))
+    (add-functions *ns* (into [] (concat col-templates row-templates)) hooks)))
 
 
 (defn defapi [&args])
