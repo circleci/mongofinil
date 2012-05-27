@@ -384,6 +384,27 @@
                      :name "set-fields!"
                      :profile profile-writes}
 
+        unset-fields! {:fn (fn [old removed-fields]
+                             (let [field-map (zipmap removed-fields (repeat 1))
+                                   new (assert! (congo/fetch-and-modify collection
+                                                                      {:_id (coerce-id old)}
+                                                                      {:$unset field-map}
+                                                                      :return-new? true
+                                                                      :upsert? false)
+                                              "Expected result, got nil")]
+                             (apply dissoc old removed-fields)))
+
+                     :doc "removed-fields is a seq. mongo atomically $unsets the fields in removed-field, without disturbing other fields on the row that may have been changed in another thread/process"
+                     :arglists '([row removed-fields])
+                     :input-transients transients
+                     :input-ref use-refs
+                     :output-ref use-refs
+                     :keywords keywords
+                     :hook :update
+                     ;; validate-input validators
+                     :name "unset-fields!"
+                     :profile profile-writes}
+
         push! {:fn (fn [old field value]
                      (let [new (assert! (congo/fetch-and-modify collection
                                                                 {:_id (coerce-id old)}
@@ -477,7 +498,7 @@
      all
      nu create!
      find-count
-     set-fields!
+     set-fields! unset-fields!
      replace! save!
      push! pull! add-to-set!]))
 

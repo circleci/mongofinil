@@ -154,6 +154,25 @@
       new =not=> (contains {:set-field-test1 1})
       new => (contains {:a "x" :c "d" :e "f" :dx 5 :dy 6}))))
 
+(fact "ensure unset-field! works as planned"
+  ;; add and check expected values
+  (create! {:a "b" :c "d"})
+  (let [old (find-one)
+        updated (merge old {:set-field-test1 1})]
+    old => (contains {:a "b" :c "d"})
+
+    ;; set and check expected values
+    (let [result (unset-fields! updated [:a :e])
+          count (find-count)
+          new (find-one)]
+      count => 1
+      result => (contains new)
+      result => (contains {:set-field-test1 1})
+      new =not=> (contains {:set-field-test1 1})
+      new => (contains {:c "d" :dx 5 :dy 6})
+      new =not=> (contains {:a anything})
+      new =not=> (contains {:e anything}))))
+
 (fact "replace! works"
   (find-count) => 0
   (let [x (create! {:a :b :x :w})]
