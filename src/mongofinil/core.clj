@@ -391,8 +391,9 @@
                  :validate-input validators
                  :keywords keywords
                  :name "create!"
-                 :hooks {:create [:pre]
-                         :load [:post]}
+                 :hooks [[:create [:pre]]
+                         [:update [:pre]]
+                         [:load [:post]]]
                  :profile profile-writes}
 
         ;; TODO: only the fields being set should be validated
