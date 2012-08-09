@@ -8,7 +8,7 @@
             [clj-time.core :as time]
             [clojure.contrib.string :as string2])
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map inspect)])
   (:import org.bson.types.ObjectId))
 
 
@@ -209,18 +209,45 @@
           (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (string2/take 150 (str args)))))
         result))))
 
-(defn wrap-hook
-  [f hooks hook]
-  (fn [& args]
-    (let [hook-fn (get hooks hook)
-          hook-fn (or hook-fn identity)]
-      (hook-fn (apply f args)))))
+(defn get-hooks [desired-phase model-hooks fn-hooks]
+  (->> fn-hooks
+       (map (fn [[crud [& phases]]]
+              (get-in model-hooks [crud desired-phase])))
+       (filter identity)))
+
+(defn call-pre-hooks [hooks rows]
+  (reduce (fn [result hook]
+            (map hook result)) rows hooks))
+
+(defn call-post-hooks-singular [hooks row]
+  (reduce (fn [result hook]
+            (hook result)) row hooks))
+
+(defn call-post-hooks-plural [hooks rows]
+  (reduce (fn [result hook]
+            (map hook result)) rows hooks))
+
+(defn call-post-hooks [hooks returns-list rows]
+  (let [f (if returns-list
+            call-post-hooks-plural
+            call-post-hooks-singular)]
+    (f hooks rows)))
+
+(defn wrap-hooks [f returns-list model-hooks fn-hooks]
+  "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
+  (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
+        post-hooks (get-hooks :post model-hooks fn-hooks)]
+    (fn [& rows]
+      (->> rows
+           (call-pre-hooks pre-hooks)
+           (apply f)
+           (call-post-hooks post-hooks returns-list)))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
   namespace"
-  [ns function-defs hooks]
+  [ns function-defs model-hooks]
   (doseq [fdef function-defs]
     (let [{:keys [name fn
                   doc arglists
@@ -229,7 +256,7 @@
                   input-transients
                   validate-input
                   keywords
-                  hook
+                  hooks
                   profile
                   returns-list]
            :or {input-ref false output-ref false
@@ -237,14 +264,14 @@
                 input-transients nil
                 keywords nil
                 profile nil
-                hook nil
+                hooks []
                 validate-input false
                 returns-list false}}
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
-          (wrap-hook hooks hook)
+          (wrap-hooks returns-list model-hooks hooks)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
           ;; always run before transient so that you can be required and transient
@@ -284,6 +311,7 @@
                     :input-ref use-refs
                     :keywords keywords
                     :name "find-by-id"
+                    :hooks {:load [:post]}
                     :profile profile-reads}
 
         ;;; given a list of keys, return the objects with those keys
@@ -296,6 +324,7 @@
                      :keywords keywords
                      :returns-list true
                      :name "find-by-ids"
+                     :hooks {:load [:post]}
                      :profile profile-reads}
 
         ;;; given conditions, find objects which match
@@ -310,6 +339,7 @@
                :returns-list true
                :output-defaults defaults
                :name "where"
+               :hooks {:load [:post]}
                :profile profile-reads}
 
         find-count {:fn (fn [& options]
@@ -328,6 +358,7 @@
                   :keywords keywords
                   :output-defaults defaults
                   :name "find-one"
+                  :hooks {:load [:post]}
                   :profile profile-reads}
 
         all {:fn (fn [& options] (apply congo/fetch collection options))
@@ -338,6 +369,7 @@
              :returns-list true
              :output-defaults defaults
              :name "all"
+             :hooks {:load [:post]}
              :profile profile-reads}
 
         nu-fn identity
@@ -359,7 +391,8 @@
                  :validate-input validators
                  :keywords keywords
                  :name "create!"
-                 :hook :update
+                 :hooks {:create [:pre]
+                         :load [:post]}
                  :profile profile-writes}
 
         ;; TODO: only the fields being set should be validated
@@ -379,7 +412,7 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
-                     :hook :update
+                     :hooks {:update [:pre :post]}
                      ;; validate-input validators
                      :name "set-fields!"
                      :profile profile-writes}
@@ -387,23 +420,23 @@
         unset-fields! {:fn (fn [old removed-fields]
                              (let [field-map (zipmap removed-fields (repeat 1))
                                    new (assert! (congo/fetch-and-modify collection
-                                                                      {:_id (coerce-id old)}
-                                                                      {:$unset field-map}
-                                                                      :return-new? true
-                                                                      :upsert? false)
-                                              "Expected result, got nil")]
-                             (apply dissoc old removed-fields)))
+                                                                        {:_id (coerce-id old)}
+                                                                        {:$unset field-map}
+                                                                        :return-new? true
+                                                                        :upsert? false)
+                                                "Expected result, got nil")]
+                               (apply dissoc old removed-fields)))
 
-                     :doc "removed-fields is a seq. mongo atomically $unsets the fields in removed-field, without disturbing other fields on the row that may have been changed in another thread/process"
-                     :arglists '([row removed-fields])
-                     :input-transients transients
-                     :input-ref use-refs
-                     :output-ref use-refs
-                     :keywords keywords
-                     :hook :update
-                     ;; validate-input validators
-                     :name "unset-fields!"
-                     :profile profile-writes}
+                       :doc "removed-fields is a seq. mongo atomically $unsets the fields in removed-field, without disturbing other fields on the row that may have been changed in another thread/process"
+                       :arglists '([row removed-fields])
+                       :input-transients transients
+                       :input-ref use-refs
+                       :output-ref use-refs
+                       :keywords keywords
+                       :hook {:update [:pre :post]}
+                       ;; validate-input validators
+                       :name "unset-fields!"
+                       :profile profile-writes}
 
         push! {:fn (fn [old field value]
                      (let [new (assert! (congo/fetch-and-modify collection
@@ -422,6 +455,7 @@
                :hook :update
                :keywords keywords
                :name "push!"
+               :hooks {:update [:pre :post]}
                :profile profile-writes}
 
         add-to-set! {:fn (fn [old field value]
@@ -440,6 +474,7 @@
                      :hook :update
                      :keywords keywords
                      :name "add-to-set!"
+                     :hooks {:update [:pre :post]}
                      :profile profile-writes}
 
         pull! {:fn (fn [old field value]
@@ -458,6 +493,7 @@
                :hook :update
                :keywords keywords
                :name "pull!"
+               :hooks {:update [:pre :post]}
                :profile profile-writes}
 
         replace!-fn (fn [id new-obj]
@@ -477,6 +513,7 @@
                   :hook :update
                   ;;: validate-input validators
                   :name "replace!"
+                  :hooks {:update [:pre :post]}
                   :profile profile-writes}
 
         ;; TODO: save! should always be validated
@@ -490,6 +527,7 @@
                :keywords keywords
                :validate-input validators
                :name "save!"
+               :hooks {:update [:pre :post]}
                :profile profile-writes}]
 
     [valid? validate!

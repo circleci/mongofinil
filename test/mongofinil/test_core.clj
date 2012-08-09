@@ -1,13 +1,24 @@
 (ns mongofinil.test-core
-  (:require [somnium.congomongo :as congo]
+  (:require [bond.james :as bond]
+            [somnium.congomongo :as congo]
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
   (:use midje.sweet
-        [clojure.core.incubator :only (-?>)])
+        [clojure.core.incubator :only (-?>)]
+        [mongofinil.helpers :only (inspect)])
   (:import org.bson.types.ObjectId))
 
 (utils/setup-test-db)
 (utils/setup-midje)
+
+(defn create-hook [row]
+  row)
+
+(defn load-hook [row]
+  row)
+
+(defn update-hook [row]
+  row)
 
 (core/defmodel :xs
   :fields [;; simple
@@ -38,6 +49,11 @@
 
            ;; validation
            {:name :valid-pos :default 5 :validator (fn [row] (when-not (pos? (:valid-pos row)) "Should be positive"))}]
+  ;; vars aren't necessary for hooks, but they do make bond/with-spy work in tests.
+  :hooks {:create {:pre #'create-hook}
+          :load {:post #'load-hook}
+          :update {:post #'update-hook}}
+
   :validations [(fn [row] (when false "failing"))])
 
 (fact "row findable functions are created and work"
@@ -135,7 +151,6 @@
 (fact "transient causes things not to be saved to the DB"
   (create! {:disx 5 :x 12}) => (contains {:disx 5})
   (find-one-by-x 12) =not=> (contains {:disx 5}))
-
 
 (fact "ensure set-field! works as planned"
   ;; add and check expected values
@@ -286,6 +301,23 @@
     (:a orig) => []
     (:a new) => ["b" "c"]
     (:a refound) => ["b" "c"]))
+
+(fact "get-hooks works"
+  (let [foo (fn [x] x)]
+    (mongofinil.core/get-hooks :pre
+                               {:create {:pre foo}
+                                :load {:post foo}
+                                :update {:post foo}}
+                               {:create [:pre]
+                                :load [:post]}) => [foo]))
+
+(fact "create hook is called properly"
+  (bond/with-spy [create-hook load-hook]
+    (create! {:a []})
+    (-> create-hook bond/calls count) => 1
+    (-> create-hook bond/calls first :args first) => (contains {:a [] :dx 5})
+    (-> load-hook bond/calls count) => 1
+    (-> load-hook bond/calls first :args first) => (contains {:a []})))
 
 
 ;;; This works in congomongo 1.9

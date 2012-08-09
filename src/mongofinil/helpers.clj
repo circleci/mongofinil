@@ -1,4 +1,5 @@
 (ns mongofinil.helpers
+  (:use [clojure.tools.logging :only (infof)])
   (:import org.bson.types.ObjectId))
 
 (defn ref?
@@ -81,3 +82,12 @@
   (dosync
    (when (not (has-object-id? @m))
      (alter m (constantly (ensure-object-id coll @m))))))
+
+(defmacro inspect
+  "prints the expression '<name> is <value>', and returns the value"
+  [value]
+  `(let [value# (quote ~value)
+         result# ~value]
+     (println value# "is" (with-out-str (clojure.pprint/pprint result#)))
+     (infof "%s is %s" value# result#)
+     result#))

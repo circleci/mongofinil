@@ -1,4 +1,4 @@
-(defproject mongofinil "0.1.27"
+(defproject org.clojars.arohner/mongofinil "0.1.28"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.3.0"]
                  [org.clojure/clojure-contrib "1.3-b7125d79301cbc1ce44b24c5b29e57685202041a"]
@@ -16,4 +16,5 @@
   :dev-dependencies [[lein-test-out "0.1.1"]
                      [midje "1.3.1" :exclusions [org.clojure/clojure]]
                      [lein-midje "1.0.7"]
+                     [bond "0.2.3" :exclusions [org.clojure/clojure]]
                      [clojure-source "1.2.1"]])
