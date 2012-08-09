@@ -413,7 +413,6 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
-                     :hooks {:update [:pre :post]}
                      ;; validate-input validators
                      :name "set-fields!"
                      :profile profile-writes}
@@ -434,7 +433,6 @@
                        :input-ref use-refs
                        :output-ref use-refs
                        :keywords keywords
-                       :hook {:update [:pre :post]}
                        ;; validate-input validators
                        :name "unset-fields!"
                        :profile profile-writes}
@@ -456,7 +454,6 @@
                :hook :update
                :keywords keywords
                :name "push!"
-               :hooks {:update [:pre :post]}
                :profile profile-writes}
 
         add-to-set! {:fn (fn [old field value]
@@ -475,7 +472,6 @@
                      :hook :update
                      :keywords keywords
                      :name "add-to-set!"
-                     :hooks {:update [:pre :post]}
                      :profile profile-writes}
 
         pull! {:fn (fn [old field value]
@@ -494,7 +490,6 @@
                :hook :update
                :keywords keywords
                :name "pull!"
-               :hooks {:update [:pre :post]}
                :profile profile-writes}
 
         replace!-fn (fn [id new-obj]
@@ -514,7 +509,8 @@
                   :hook :update
                   ;;: validate-input validators
                   :name "replace!"
-                  :hooks {:update [:pre :post]}
+                  :hooks {:update [:pre :post]
+                          :load [:post]}
                   :profile profile-writes}
 
         ;; TODO: save! should always be validated
@@ -528,7 +524,8 @@
                :keywords keywords
                :validate-input validators
                :name "save!"
-               :hooks {:update [:pre :post]}
+               :hooks {:update [:pre :post]
+                       :load [:post]}
                :profile profile-writes}]
 
     [valid? validate!
