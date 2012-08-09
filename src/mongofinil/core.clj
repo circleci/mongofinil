@@ -271,7 +271,7 @@
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
-          (wrap-hooks returns-list model-hooks hooks)
+          (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
           ;; always run before transient so that you can be required and transient
@@ -281,6 +281,8 @@
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
+          (wrap-hooks returns-list (select-keys model-hooks [:ref]) (when output-ref
+                                                                      {:ref [:post]}))
           (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 
