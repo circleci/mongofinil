@@ -8,7 +8,7 @@
             [clj-time.core :as time]
             [clojure.contrib.string :as string2])
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map inspect)])
+  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId))
 
 
