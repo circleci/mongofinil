@@ -248,6 +248,8 @@
     (:a @new) => ["a" "c"]
     (:a @refound) => ["a" "c"]))
 
+(fact "find-one doesn't return bogus refs when there's no object"
+  (find-one :where {:bogus 789}) => nil)
 
 (future-fact "transient doesnt stop things being loaded from the DB"
              (congo/insert! :xs {:disx 55 :x 55})

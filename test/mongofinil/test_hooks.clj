@@ -1,5 +1,6 @@
-(ns mongofinil.test-core
-  (:require [somnium.congomongo :as congo]
+(ns mongofinil.test-hooks
+  (:require [bond.james :as bond]
+            [somnium.congomongo :as congo]
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
   (:use midje.sweet
@@ -10,15 +11,24 @@
 (utils/setup-test-db)
 (utils/setup-midje)
 
+(defn update-hook [row]
+  (update-in row [:hook-count] (fnil inc 0)))
+
+(defn load-hook [row]
+  (update-in row [:loaded] (fnil inc 0)))
+
 (core/defmodel :xs
   :fields [{:name :x :findable true}]
-  :hooks {:update (fn [row]
-                    (assoc row :hook-count (-> row :hook-count (or 0) inc)))})
+  :hooks {:update {:post #'update-hook}
+          :load {:post #'load-hook}})
 
-;.;. First they ignored you, then they laughed at you, then they fought you, now
-;.;. you've won. -- Not quite Gandhi
 (fact "hooks are triggered"
-  (let [orig (create! {})]
-    orig => (contains {:hook-count 1})
-    (set-fields! orig {:x :y}) => (contains {:hook-count 2})
-    (add-to-set! orig :a :y) => (contains {:hook-count 2 :a ["y"]})))
+  (bond/with-spy [load-hook]
+    (let [orig (create! {})]
+      orig => (contains {:hook-count 1})
+      (-> load-hook bond/calls count) => 1)))
+
+(fact "hooks aren't called when no rows are returned"
+  (bond/with-spy [load-hook]
+    (seq (find-one :where {:bogus 987})) => nil
+    (-> load-hook bond/calls count) => 0))

@@ -217,15 +217,20 @@
 
 (defn call-pre-hooks [hooks rows]
   (reduce (fn [result hook]
-            (map hook result)) rows hooks))
+            (map (fn [row]
+                   (when row
+                     (hook row))) result)) rows hooks))
 
 (defn call-post-hooks-singular [hooks row]
   (reduce (fn [result hook]
-            (hook result)) row hooks))
+            (when row
+              (hook result))) row hooks))
 
 (defn call-post-hooks-plural [hooks rows]
   (reduce (fn [result hook]
-            (map hook result)) rows hooks))
+            (map (fn [row]
+                   (when row
+                     (hook row))) result)) rows hooks))
 
 (defn call-post-hooks [hooks returns-list rows]
   (let [f (if returns-list

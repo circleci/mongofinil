@@ -4,8 +4,7 @@
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
   (:use midje.sweet
-        [clojure.core.incubator :only (-?>)]
-        [mongofinil.helpers :only (inspect)])
+        [clojure.core.incubator :only (-?>)])
   (:import org.bson.types.ObjectId))
 
 (utils/setup-test-db)
