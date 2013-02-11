@@ -116,6 +116,15 @@
          results)))
     f))
 
+(defn wrap-debug
+  "Wrap f to add default output values for the result of f"
+  [f]
+  (fn [& args]
+    (println "coming in:\n" args)
+    (let [results (apply f args)]
+      (println "coming out:\n" results)
+      results)))
+
 (defn wrap-convert-keywords
   "If the result of f contains keys which are in keywords, convert them to keywords"
   [f keywords]
