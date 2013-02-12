@@ -1,5 +1,6 @@
 (ns mongofinil.test-core
   (:require [bond.james :as bond]
+            [clj-time.core :as time]
             [somnium.congomongo :as congo]
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
@@ -317,6 +318,19 @@
     (-> create-hook bond/calls first :args first) => (contains {:a [] :dx 5})
     (-> load-hook bond/calls count) => 1
     (-> load-hook bond/calls first :args first) => (contains {:a []})))
+
+(fact "wrap-profile handles clock skew"
+  (core/wrap-profile println 1 "foo" "bar") => anything
+  (let [counter (atom 0)
+        before (time/minus (time/now) (time/secs 2))
+        after (time/now)
+        stateful-time (fn []
+                        (swap! counter inc)
+                        (if (zero? (mod @counter 2))
+                          before
+                          after))]
+    (with-redefs [time/now stateful-time]
+      ((core/wrap-profile println 1 "foo" "bar")) => anything)))
 
 
 ;;; This works in congomongo 1.9

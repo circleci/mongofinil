@@ -1,12 +1,10 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
-
   (:require [somnium.congomongo :as congo]
             [somnium.congomongo.coerce :as congo-coerce]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time]
-            [clojure.contrib.string :as string2])
+            [clj-time.core :as time])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId))
@@ -205,6 +203,9 @@
         results
         (first results)))))
 
+(defn str-take [n str]
+  (.substring str 0 (min n (count str))))
+
 (defn wrap-profile
   [f time-in-millis ns name]
   (fn [& args]
@@ -212,10 +213,12 @@
       (apply f args)
       (let [start (time/now)
             result (apply f args)
-            stop (time/now)
-            msecs (time/in-msecs (time/interval start stop))]
-        (when (> msecs time-in-millis)
-          (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (string2/take 150 (str args)))))
+            stop (time/now)]
+        (when-let [msecs (when (time/before? start stop)
+                           ;; clock skew
+                           (time/in-msecs (time/interval start stop)))]
+          (when (> msecs time-in-millis)
+            (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (str-take 150 (str args))))))
         result))))
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
