@@ -415,6 +415,20 @@
                          [:load [:post]]]
                  :profile profile-writes}
 
+        ;;; raw find-and-modify
+        find-and-modify! {:fn (fn [where update & options]
+                                (apply congo/fetch-and-modify collection where update options))
+                          :doc "basic mongo findAndModify for this collection."
+                          :arglists '([where update & options])
+                          :input-ref false
+                          :output-ref use-refs
+                          :keywords keywords
+                          :returns-list false
+                          :output-defaults defaults
+                          :name "find-and-modify!"
+                          :hooks {:load [:post]}
+                          :profile profile-writes}
+
         ;; TODO: only the fields being set should be validated
         set-fields! {:fn (fn [old new-fields]
                            (let [new (assert! (congo/fetch-and-modify collection
@@ -553,6 +567,7 @@
      all
      nu create!
      find-count
+     find-and-modify!
      set-fields! unset-fields!
      replace! save!
      push! pull! add-to-set!]))
