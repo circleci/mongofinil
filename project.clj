@@ -1,4 +1,4 @@
-(defproject org.clojars.arohner/mongofinil "0.1.32"
+(defproject org.clojars.dlowe/mongofinil "0.1.34"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.3.0"]
 
