@@ -152,6 +152,15 @@
   (create! {:disx 5 :x 12}) => (contains {:disx 5})
   (find-one-by-x 12) =not=> (contains {:disx 5}))
 
+(fact "ensure find-and-modify! works as planned"
+  (let [original (create! {:a "b" :c "d" :e "f"})
+        r0 (find-and-modify! {:a (:a original)} {:$unset {:c true}})
+        r1 (find-and-modify! {:a (:a original)} {:$unset {:e true}} :return-new? true)
+        r2 (find-one)]
+    r0 => (contains {:c anything})
+    r1 =not=> (contains {:e anything})
+    r2 =not=> (contains {:c anything :e anything})))
+
 (fact "ensure set-field! works as planned"
   ;; add and check expected values
   (create! {:a "b" :c "d"})
@@ -197,7 +206,7 @@
   (find-one) =not=> (contains {:x "w"}))
 
 (fact "dont try to serialize transiented"
-  (create! {:disx (fn [] "x")}))
+  (create! {:disx (fn [] "x")}) => anything)
 
 (fact "check validations work"
   (let [x (create! {:valid-pos 5})]
@@ -252,14 +261,14 @@
     (find-one) => (contains {:y 45 :kw :g})))
 
 
-(fact "validators cause save to fail coreectly")
-(fact "validators dont prevent valid objects from saving")
+(future-fact "validators cause save to fail coreectly")
+(future-fact "validators dont prevent valid objects from saving")
 
-(fact "validators cause set-fields to fail coreectly")
-(fact "validators dont prevent valid objects from having their fields set")
+(future-fact "validators cause set-fields to fail coreectly")
+(future-fact "validators dont prevent valid objects from having their fields set")
 
-(fact "validators cause replace! to fail coreectly")
-(fact "validators dont prevent valid objects from being replaced")
+(future-fact "validators cause replace! to fail coreectly")
+(future-fact "validators dont prevent valid objects from being replaced")
 
 
 (fact "find-by-id has an error with an invalid id causes an error"
