@@ -197,7 +197,7 @@
   (find-one) =not=> (contains {:x "w"}))
 
 (fact "dont try to serialize transiented"
-  (create! {:disx (fn [] "x")}))
+  (create! {:disx (fn [] "x")}) => anything)
 
 (fact "check validations work"
   (let [x (create! {:valid-pos 5})]
@@ -252,14 +252,14 @@
     (find-one) => (contains {:y 45 :kw :g})))
 
 
-(fact "validators cause save to fail coreectly")
-(fact "validators dont prevent valid objects from saving")
+(future-fact "validators cause save to fail coreectly")
+(future-fact "validators dont prevent valid objects from saving")
 
-(fact "validators cause set-fields to fail coreectly")
-(fact "validators dont prevent valid objects from having their fields set")
+(future-fact "validators cause set-fields to fail coreectly")
+(future-fact "validators dont prevent valid objects from having their fields set")
 
-(fact "validators cause replace! to fail coreectly")
-(fact "validators dont prevent valid objects from being replaced")
+(future-fact "validators cause replace! to fail coreectly")
+(future-fact "validators dont prevent valid objects from being replaced")
 
 
 (fact "find-by-id has an error with an invalid id causes an error"
