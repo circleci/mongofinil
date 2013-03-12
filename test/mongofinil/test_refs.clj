@@ -137,6 +137,15 @@
   @(find-one-by-x 12) =not=> (contains {:disx 5}))
 
 
+(fact "ensure find-and-modify! works as planned"
+  (let [original (create! {:a "b" :c "d" :e "f"})
+        r0 (find-and-modify! {:a (:a @original)} {:$unset {:c true}})
+        r1 (find-and-modify! {:a (:a @original)} {:$unset {:e true}} :return-new? true)
+        r2 (find-one)]
+    @r0 => (contains {:c anything})
+    @r1 =not=> (contains {:e anything})
+    @r2 =not=> (contains {:c anything :e anything})))
+
 (fact "ensure set works as planned"
   ;; add and check expected values
   (create! {:a "b" :c "d"})
