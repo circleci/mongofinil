@@ -21,4 +21,6 @@
               [[lein-test-out "0.1.1"]
                [midje "1.4.0" :exclusions [org.clojure/clojure]]
                [lein-midje "2.0.3"]
-               [bond "0.2.3" :exclusions [org.clojure/clojure]]]}})
+               [bond "0.2.3" :exclusions [org.clojure/clojure]]]}}
+
+  :plugins [[lein-midje "2.0.3"]])
