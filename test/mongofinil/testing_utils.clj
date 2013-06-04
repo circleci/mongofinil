@@ -23,5 +23,6 @@
 (defmacro setup-midje
   "Defines a midje (background) such that the test DB is cleared
   between runs, and all clojure DB connections go through the test DB"
-  []
-  `(background (before :facts (do (clear-test-db)))))
+  [& initializers]
+  `(background (before :facts (do (clear-test-db)
+                                  ~@initializers))))

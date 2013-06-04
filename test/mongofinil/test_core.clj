@@ -8,8 +8,15 @@
         [clojure.core.incubator :only (-?>)])
   (:import org.bson.types.ObjectId))
 
+(defn initializer []
+  (congo/add-index! :xs [:a])
+  (congo/add-index! :xs [:w])
+  (congo/add-index! :xs [:x])
+  (congo/add-index! :xs [:dx])
+  (congo/add-index! :xs [:y]))
+
 (utils/setup-test-db)
-(utils/setup-midje)
+(utils/setup-midje (initializer))
 
 (defn create-hook [row]
   row)
