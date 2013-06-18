@@ -435,6 +435,7 @@
                                                                       {:_id (coerce-id old)}
                                                                       {:$set new-fields}
                                                                       :return-new? true
+                                                                      :only (keys new-fields)
                                                                       :upsert? false)
                                               "Expected result, got nil")
                                  new-fields (select-keys new (keys new-fields))]
@@ -455,7 +456,7 @@
                                    new (assert! (congo/fetch-and-modify collection
                                                                         {:_id (coerce-id old)}
                                                                         {:$unset field-map}
-                                                                        :return-new? true
+                                                                        :return-new? false
                                                                         :upsert? false)
                                                 "Expected result, got nil")]
                                (apply dissoc old removed-fields)))
@@ -475,6 +476,7 @@
                                                                 {:_id (coerce-id old)}
                                                                 {:$push {field value}}
                                                                 :return-new? true
+                                                                :only [field]
                                                                 :upsert? false)
                                         "Expected result, got nil")]
                        (assoc old field (field new))))
@@ -494,6 +496,7 @@
                                                                       {:_id (coerce-id old)}
                                                                       {:$addToSet {field value}}
                                                                       :return-new? true
+                                                                      :only [field]
                                                                       :upsert? false)
                                               "Expected result, got nil")]
                              (assoc old field (field new))))
@@ -512,6 +515,7 @@
                                                                 {:_id (coerce-id old)}
                                                                 {:$pull {field value}}
                                                                 :return-new? true
+                                                                :only [field]
                                                                 :upsert? false)
                                         "Expected result, got nil")]
                        (assoc old field (field new))))

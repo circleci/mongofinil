@@ -175,14 +175,19 @@
         updated (merge old {:set-field-test1 1})]
     old => (contains {:a "b" :c "d"})
 
+    ;; sneakily add an extra field, which shouldn't be fetched during the set-fields
+    (set-fields! old {:sneaky-field 1})
+
     ;; set and check expected values
     (let [result (set-fields! updated {:a "x" :e "f"})
           count (find-count)
           new (find-one)]
       count => 1
-      result => (contains new)
+      result => (contains (dissoc new :sneaky-field))
       result => (contains {:set-field-test1 1})
       new =not=> (contains {:set-field-test1 1})
+      result =not=> (contains {:sneaky-field 1})
+      new => (contains {:sneaky-field 1})
       new => (contains {:a "x" :c "d" :e "f" :dx 5 :dy 6}))))
 
 (fact "ensure unset-field! works as planned"
