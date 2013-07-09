@@ -449,6 +449,8 @@
                      :keywords keywords
                      ;; validate-input validators
                      :name "set-fields!"
+                     :hooks {:update [:pre :post]
+                             :load [:post]}
                      :profile profile-writes}
 
         unset-fields! {:fn (fn [old removed-fields]
@@ -469,6 +471,8 @@
                        :keywords keywords
                        ;; validate-input validators
                        :name "unset-fields!"
+                       :hooks {:update [:pre :post]
+                               :load [:post]}
                        :profile profile-writes}
 
         push! {:fn (fn [old field value]
@@ -487,6 +491,8 @@
                :input-ref use-refs
                :output-ref use-refs
                :hook :update
+               :hooks {:update [:pre :post]
+                       :load [:post]}
                :keywords keywords
                :name "push!"
                :profile profile-writes}
@@ -506,6 +512,8 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :hook :update
+                     :hooks {:update [:pre :post]
+                             :load [:post]}
                      :keywords keywords
                      :name "add-to-set!"
                      :profile profile-writes}
@@ -526,6 +534,8 @@
                :output-ref use-refs
                :hook :update
                :keywords keywords
+               :hooks {:update [:pre :post]
+                       :load [:post]}
                :name "pull!"
                :profile profile-writes}
 
