@@ -425,7 +425,8 @@
                           :returns-list false
                           :output-defaults defaults
                           :name "find-and-modify!"
-                          :hooks {:load [:post]}
+                          :hooks {:load [:post]
+                                  :update [:pre :post]}
                           :profile profile-writes}
 
         ;; TODO: only the fields being set should be validated
