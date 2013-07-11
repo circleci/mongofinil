@@ -233,8 +233,8 @@
   [hooks]
   (apply comp (map (fn [f] (fn [x] (when x (f x)))) hooks)))
 
-(defn call-pre-hooks [hooks query]
-  ((some-hooks hooks) query))
+(defn call-pre-hooks [hooks row]
+  ((some-hooks hooks) row))
 
 (defn call-post-hooks-singular [hooks row]
   ((some-hooks hooks) row))
