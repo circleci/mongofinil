@@ -227,21 +227,17 @@
               (get-in model-hooks [crud desired-phase])))
        (filter identity)))
 
-(defn call-pre-hooks [hooks rows]
-  (reduce (fn [result hook]
-            (map (fn [row]
-                   (when row
-                     (hook row))) result)) rows hooks))
 (defn some-hooks
   "Similar to comp, but takes seq of functions of 1 argument and stops
    applying functions when passed nil or when a hook returns nil."
   [hooks]
   (apply comp (map (fn [f] (fn [x] (when x (f x)))) hooks)))
 
+(defn call-pre-hooks [hooks rows]
+  (map (some-hooks hooks) rows))
+
 (defn call-post-hooks-singular [hooks row]
-  (reduce (fn [result hook]
-            (when row
-              (hook result))) row hooks))
+  ((some-hooks hooks) row))
 
 (defn call-post-hooks-plural [hooks rows]
   (reduce (fn [result hook]
