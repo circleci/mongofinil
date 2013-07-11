@@ -232,6 +232,11 @@
             (map (fn [row]
                    (when row
                      (hook row))) result)) rows hooks))
+(defn some-hooks
+  "Similar to comp, but takes seq of functions of 1 argument and stops
+   applying functions when passed nil or when a hook returns nil."
+  [hooks]
+  (apply comp (map (fn [f] (fn [x] (when x (f x)))) hooks)))
 
 (defn call-post-hooks-singular [hooks row]
   (reduce (fn [result hook]
