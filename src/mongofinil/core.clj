@@ -251,13 +251,14 @@
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
-    (fn
-      ([] (call-post-hooks post-hooks returns-list (f)))
-      ([query & opts]
-         (->> query
-              (call-pre-hooks pre-hooks)
-              (#(apply f % opts))
-              (call-post-hooks post-hooks returns-list))))))
+    (fn [& args]
+      (if (or (empty? args) (empty? pre-hooks))
+        (call-post-hooks post-hooks returns-list (apply f args))
+        (let [[row & opts] args]
+          (->> row
+               (call-pre-hooks pre-hooks)
+               (#(apply f % opts))
+               (call-post-hooks post-hooks returns-list)))))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
