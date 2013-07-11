@@ -240,10 +240,7 @@
   ((some-hooks hooks) row))
 
 (defn call-post-hooks-plural [hooks rows]
-  (reduce (fn [result hook]
-            (map (fn [row]
-                   (when row
-                     (hook row))) result)) rows hooks))
+  (map #(call-post-hooks-singular hooks %) rows))
 
 (defn call-post-hooks [hooks returns-list rows]
   (let [f (if returns-list
