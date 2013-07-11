@@ -50,3 +50,14 @@
   (bond/with-spy [pre-update-hook]
     (find-one) => anything
     (-> pre-update-hook bond/calls count) => 0))
+
+(fact "handles options to find-and-modify"
+  (bond/with-spy [pre-update-hook]
+
+    (find-and-modify! {:bogus 987} {:$set {:b 2}} :upsert? false)
+    (-> (all) count) => 0
+    (-> pre-update-hook bond/calls count) => 1
+
+    (find-and-modify! {:bogus 987} {:$set {:b 2}} :upsert? true)
+    (-> (all) count) => 1
+    (-> pre-update-hook bond/calls count) => 2))
