@@ -243,10 +243,9 @@
   (map #(call-post-hooks-singular hooks %) rows))
 
 (defn call-post-hooks [hooks returns-list rows]
-  (let [f (if returns-list
-            call-post-hooks-plural
-            call-post-hooks-singular)]
-    (f hooks rows)))
+  (if returns-list
+    (call-post-hooks-plural hooks rows)
+    (call-post-hooks-singular hooks rows)))
 
 (defn wrap-hooks [f returns-list model-hooks fn-hooks]
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
