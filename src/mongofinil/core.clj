@@ -233,8 +233,8 @@
   [hooks]
   (apply comp (map (fn [f] (fn [x] (when x (f x)))) hooks)))
 
-(defn call-pre-hooks [hooks rows]
-  (map (some-hooks hooks) rows))
+(defn call-pre-hooks [hooks query]
+  ((some-hooks hooks) query))
 
 (defn call-post-hooks-singular [hooks row]
   ((some-hooks hooks) row))
@@ -251,11 +251,13 @@
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
-    (fn [& rows]
-      (->> rows
-           (call-pre-hooks pre-hooks)
-           (apply f)
-           (call-post-hooks post-hooks returns-list)))))
+    (fn
+      ([] (call-post-hooks post-hooks returns-list (f)))
+      ([query & opts]
+         (->> query
+              (call-pre-hooks pre-hooks)
+              (#(apply f % opts))
+              (call-post-hooks post-hooks returns-list))))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
