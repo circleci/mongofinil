@@ -228,10 +228,13 @@
        (filter identity)))
 
 (defn some-hooks
-  "Similar to comp, but takes seq of functions of 1 argument and stops
-   applying functions when passed nil or when a hook returns nil."
+  "Takes a seq of hooks and returns a function that is the composition of those
+  hooks. Adds a nil-guard to each of the hooks, stops executing hooks if passed
+  nil or when a hook in the chain returns nil.
+  Returns nil if called with nil or if any of the hooks returns nil."
   [hooks]
-  (apply comp (map (fn [f] (fn [x] (when x (f x)))) hooks)))
+  (let [guard-nil-fn (fn [hook] (fn [x] (when x (hook x))))]
+    (apply comp (map guard-nil-fn hooks))))
 
 (defn call-pre-hooks [hooks row]
   ((some-hooks hooks) row))
