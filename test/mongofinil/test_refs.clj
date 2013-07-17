@@ -47,6 +47,10 @@
 
            ;; validation
            {:name :valid-pos :default 5 :validator (fn [row] (when-not (pos? (:valid-pos row)) "Should be positive"))}]
+  :hooks {:update {:pre identity
+                   :post identity}
+          :load {:post identity
+                 :pre identity}}
   :validations [(fn [row] (when false "failing"))])
 
 (fact "row findable functions are created and work"

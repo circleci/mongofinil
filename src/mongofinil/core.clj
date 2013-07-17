@@ -227,38 +227,41 @@
               (get-in model-hooks [crud desired-phase])))
        (filter identity)))
 
-(defn call-pre-hooks [hooks rows]
-  (reduce (fn [result hook]
-            (map (fn [row]
-                   (when row
-                     (hook row))) result)) rows hooks))
+(defn some-hooks
+  "Takes a seq of hooks and returns a function that is the composition of those
+  hooks. Adds a nil-guard to each of the hooks, stops executing hooks if passed
+  nil or when a hook in the chain returns nil.
+  Returns nil if called with nil or if any of the hooks returns nil."
+  [hooks]
+  (let [guard-nil-fn (fn [hook] (fn [x] (when x (hook x))))]
+    (apply comp (map guard-nil-fn hooks))))
+
+(defn call-pre-hooks [hooks row]
+  ((some-hooks hooks) row))
 
 (defn call-post-hooks-singular [hooks row]
-  (reduce (fn [result hook]
-            (when row
-              (hook result))) row hooks))
+  ((some-hooks hooks) row))
 
 (defn call-post-hooks-plural [hooks rows]
-  (reduce (fn [result hook]
-            (map (fn [row]
-                   (when row
-                     (hook row))) result)) rows hooks))
+  (map #(call-post-hooks-singular hooks %) rows))
 
 (defn call-post-hooks [hooks returns-list rows]
-  (let [f (if returns-list
-            call-post-hooks-plural
-            call-post-hooks-singular)]
-    (f hooks rows)))
+  (if returns-list
+    (call-post-hooks-plural hooks rows)
+    (call-post-hooks-singular hooks rows)))
 
 (defn wrap-hooks [f returns-list model-hooks fn-hooks]
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
-    (fn [& rows]
-      (->> rows
-           (call-pre-hooks pre-hooks)
-           (apply f)
-           (call-post-hooks post-hooks returns-list)))))
+    (fn [& args]
+      (if (or (empty? args) (empty? pre-hooks))
+        (call-post-hooks post-hooks returns-list (apply f args))
+        (let [[row & opts] args]
+          (->> row
+               (call-pre-hooks pre-hooks)
+               (#(apply f % opts))
+               (call-post-hooks post-hooks returns-list)))))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
@@ -426,7 +429,8 @@
                           :returns-list false
                           :output-defaults defaults
                           :name "find-and-modify!"
-                          :hooks {:load [:post]}
+                          :hooks {:load [:post]
+                                  :update [:pre :post]}
                           :profile profile-writes}
 
         ;; TODO: only the fields being set should be validated
@@ -449,6 +453,8 @@
                      :keywords keywords
                      ;; validate-input validators
                      :name "set-fields!"
+                     :hooks {:update [:pre :post]
+                             :load [:post]}
                      :profile profile-writes}
 
         unset-fields! {:fn (fn [old removed-fields]
@@ -469,6 +475,8 @@
                        :keywords keywords
                        ;; validate-input validators
                        :name "unset-fields!"
+                       :hooks {:update [:pre :post]
+                               :load [:post]}
                        :profile profile-writes}
 
         push! {:fn (fn [old field value]
@@ -487,6 +495,8 @@
                :input-ref use-refs
                :output-ref use-refs
                :hook :update
+               :hooks {:update [:pre :post]
+                       :load [:post]}
                :keywords keywords
                :name "push!"
                :profile profile-writes}
@@ -506,6 +516,8 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :hook :update
+                     :hooks {:update [:pre :post]
+                             :load [:post]}
                      :keywords keywords
                      :name "add-to-set!"
                      :profile profile-writes}
@@ -526,6 +538,8 @@
                :output-ref use-refs
                :hook :update
                :keywords keywords
+               :hooks {:update [:pre :post]
+                       :load [:post]}
                :name "pull!"
                :profile profile-writes}
 
