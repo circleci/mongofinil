@@ -291,9 +291,11 @@
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
-          (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
+          (wrap-unwrap-single-object returns-list)
+          (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
+          (wrap-wrap-single-object returns-list)
           ;; always run before transient so that you can be required and transient
           (wrap-validate validate-input)
           (wrap-input-defaults input-defaults)
