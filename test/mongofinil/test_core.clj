@@ -27,6 +27,15 @@
 (defn update-hook [row]
   row)
 
+(fact "convert-dotmap-to-nested works"
+      (let [old_map {:foo {:bar "baz"} :foo_2 "baz_2"}
+            new_map {:foo {:bar "new_baz"}}
+            new_dotmap {:foo.bar "newest_baz"}]
+        ;; Core
+        (merge old_map new_map) => {:foo {:bar "new_baz"} :foo_2 "baz_2"}
+        ;; Dot-keyword-expansion
+        (merge old_map (core/convert-dotmap-to-nested new_dotmap)) => {:foo {:bar "newest_baz"} :foo_2 "baz_2"}))
+
 (core/defmodel :xs
   :fields [;; simple
            {:name :x :findable true}

@@ -4,7 +4,8 @@
             [somnium.congomongo.coerce :as congo-coerce]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time])
+            [clj-time.core :as time]
+            [clojure.string])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId))
@@ -180,6 +181,15 @@
                {:doc doc
                 :arglists arglists}) fn))
 
+;; Adding support for nested function merges
+(defn convert-dotmap-to-nested
+  [hm]
+  (reduce-kv (fn [hm k v]
+               (assoc-in hm (map keyword (clojure.string/split (name k) #"[\.]"))
+                         (if (map? v)
+                           (convert-dotmap-to-nested v)
+                           v)))
+             {} hm))
 
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
@@ -443,7 +453,7 @@
                                                                       :upsert? false)
                                               "Expected result, got nil")
                                  new-fields (select-keys new (keys new-fields))]
-                             (merge old new-fields)))
+                             (merge old (convert-dotmap-to-nested new-fields))))
 
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
