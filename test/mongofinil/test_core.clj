@@ -209,6 +209,20 @@
       new => (contains {:sneaky-field 1})
       new => (contains {:a "x" :c "d" :e "f" :dx 5 :dy 6}))))
 
+(fact "verify that our deep-nesting works in set-fields!"
+  (create! {:bearfood {:summer "salmon"} :bearname "ursa"})
+      (let [old (find-one)]
+        old => (contains {:bearfood {:summer "salmon"} :bearname "ursa"})
+        
+        (let [new (set-fields! old {:bearfood.winter "nada"})
+              newer (find-one)
+              expected (core/deep-merge-with (fn [a b] b) old (core/convert-dotmap-to-nested {:bearfood.winter "nada"}))]
+          new => (contains {:bearfood {:summer "salmon" :winter "nada"} :bearname "ursa"}) ;; why doesn't this contain :winter?
+          expected => (contains {:bearfood {:summer "salmon" :winter "nada"} :bearname "ursa"}) 
+          newer => (contains {:bearfood {:summer "salmon"
+                                         :winter "nada"}
+                              :bearname "ursa"}))))
+
 (fact "ensure unset-field! works as planned"
   ;; add and check expected values
   (create! {:a "b" :c "d"})
