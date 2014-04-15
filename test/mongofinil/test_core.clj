@@ -27,6 +27,7 @@
 (defn update-hook [row]
   row)
 
+;; This isn't sufficient at deeper nesting levels
 (fact "convert-dotmap-to-nested works"
       (let [old_map {:foo {:bar "baz"} :foo_2 "baz_2"}
             new_map {:foo {:bar "new_baz"}}
@@ -35,6 +36,15 @@
         (merge old_map new_map) => {:foo {:bar "new_baz"} :foo_2 "baz_2"}
         ;; Dot-keyword-expansion
         (merge old_map (core/convert-dotmap-to-nested new_dotmap)) => {:foo {:bar "newest_baz"} :foo_2 "baz_2"}))
+
+(fact "deep-merge-with suits our purposes"
+      (mongofinil.core/deep-merge-with 
+        (fn [a b] b) 
+        {:a {:b {:c 2 :d 3}}} 
+        {:a {:b {:c 3}}}) => {:a {:b {:c 3, :d 3}}}
+      (mongofinil.core/deep-merge-with 
+        (fn [a b] b) 
+        {:a {:b 1 :d 2}} {:a {:b 2}}) => {:a {:b 2 :d 2}})
 
 (core/defmodel :xs
   :fields [;; simple

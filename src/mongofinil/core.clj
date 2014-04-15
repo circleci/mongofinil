@@ -190,6 +190,22 @@
                            v)))
              {} hm))
 
+;; used to sit in clojure.contrib.map-utils
+(defn deep-merge-with
+  "Like merge-with, but merges maps recursively, applying the given fn
+  only when there's a non-map at a particular level.
+
+  (deepmerge + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
+               {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
+  -> {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
+  [f & maps]
+  (apply
+    (fn m [& maps]
+      (if (every? map? maps)
+        (apply merge-with m maps)
+        (apply f maps)))
+    maps))
+
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
 ;;; to instead wrap those single objects as lazy lists, apply all operations
@@ -452,7 +468,8 @@
                                                                       :upsert? false)
                                               "Expected result, got nil")
                                  new-fields (select-keys new (keys new-fields))]
-                             (merge old (convert-dotmap-to-nested new-fields))))
+                             (deep-merge-with (fn [a b] b) old 
+                                              (convert-dotmap-to-nested new-fields))))
 
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
