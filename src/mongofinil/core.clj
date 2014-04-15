@@ -4,8 +4,7 @@
             [somnium.congomongo.coerce :as congo-coerce]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time]
-            [clojure.string])
+            [clj-time.core :as time])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId))
