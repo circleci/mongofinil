@@ -98,7 +98,6 @@
         map (apply hash-map args)]
     (get map key)))
 
-
 (defn wrap-output-defaults
   "Wrap f to add default output values for the result of f"
   [f defaults]
@@ -180,6 +179,36 @@
                {:doc doc
                 :arglists arglists}) fn))
 
+(defn convert-dotmap-to-nested
+  "Converts a map with dot-notated keys to a nested map"
+  [hm]
+  (reduce-kv (fn [hm k v]
+               (assoc-in hm (map keyword (clojure.string/split (name k) #"[\.]"))
+                         (if (map? v)
+                           (convert-dotmap-to-nested v)
+                           v)))
+             {} hm))
+
+(defn is-dot-notated?
+  "Checks if a keyword is in dot-notation"
+  [k]
+  (boolean (re-find (re-matcher #"[\.]" (name k)))))
+
+(defn deep-merge-with-like-mongo
+  "Merge new fields into an old map the same way MongoDB does.
+  Note that although this plays nicely with dot-notated nested fields it 
+  does not play nicely with indexes at the moment"
+  [old_map new_map]
+  (if (empty? new_map) 
+    old_map
+    (let [[k v] (first new_map)]
+      (if (is-dot-notated? k)
+              (deep-merge-with-like-mongo
+                (assoc-in old_map (map keyword (clojure.string/split (name k) #"[\.]")) v)
+                (dissoc new_map k))
+              (deep-merge-with-like-mongo 
+                (merge old_map {k v}) 
+                (dissoc new_map k))))))
 
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
@@ -441,9 +470,8 @@
                                                                       :return-new? true
                                                                       :only (keys new-fields)
                                                                       :upsert? false)
-                                              "Expected result, got nil")
-                                 new-fields (select-keys new (keys new-fields))]
-                             (merge old new-fields)))
+                                              "Expected result, got nil")]
+                             (deep-merge-with-like-mongo old new-fields)))
 
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
