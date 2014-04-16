@@ -98,7 +98,6 @@
         map (apply hash-map args)]
     (get map key)))
 
-
 (defn wrap-output-defaults
   "Wrap f to add default output values for the result of f"
   [f defaults]
@@ -180,8 +179,8 @@
                {:doc doc
                 :arglists arglists}) fn))
 
-;; Adding support for nested function merges
 (defn convert-dotmap-to-nested
+  "Converts a map with dot-notated keys to a nested map"
   [hm]
   (reduce-kv (fn [hm k v]
                (assoc-in hm (map keyword (clojure.string/split (name k) #"[\.]"))
@@ -190,21 +189,26 @@
                            v)))
              {} hm))
 
-;; used to sit in clojure.contrib.map-utils
-(defn deep-merge-with
-  "Like merge-with, but merges maps recursively, applying the given fn
-  only when there's a non-map at a particular level.
+(defn is-dot-notated?
+  "Checks if a keyword is in dot-notation"
+  [k]
+  (boolean (re-find (re-matcher #"[\.]" (name k)))))
 
-  (deepmerge + {:a {:b {:c 1 :d {:x 1 :y 2}} :e 3} :f 4}
-               {:a {:b {:c 2 :d {:z 9} :z 3} :e 100}})
-  -> {:a {:b {:z 3, :c 3, :d {:z 9, :x 1, :y 2}}, :e 103}, :f 4}"
-  [f & maps]
-  (apply
-    (fn m [& maps]
-      (if (every? map? maps)
-        (apply merge-with m maps)
-        (apply f maps)))
-    maps))
+(defn deep-merge-with-like-mongo
+  "Merge new fields into an old map the same way MongoDB does.
+  Note that although this plays nicely with dot-notated nested fields it 
+  does not play nicely with indexes at the moment"
+  [old_map new_map]
+  (if (empty? new_map) 
+    old_map
+    (let [[k v] (first new_map)]
+      (if (is-dot-notated? k)
+              (deep-merge-with-like-mongo
+                (assoc-in old_map (map keyword (clojure.string/split (name k) #"[\.]")) v)
+                (dissoc new_map k))
+              (deep-merge-with-like-mongo 
+                (merge old_map {k v}) 
+                (dissoc new_map k))))))
 
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
@@ -466,10 +470,8 @@
                                                                       :return-new? true
                                                                       :only (keys new-fields)
                                                                       :upsert? false)
-                                              "Expected result, got nil")
-                                 new-fields (select-keys new (keys new-fields))]
-                             (deep-merge-with (fn [a b] b) old 
-                                              (convert-dotmap-to-nested new-fields))))
+                                              "Expected result, got nil")]
+                             (deep-merge-with-like-mongo old new-fields)))
 
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
