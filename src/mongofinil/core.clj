@@ -179,15 +179,15 @@
                {:doc doc
                 :arglists arglists}) fn))
 
+(defn dot-keyword-to-unnested-vector
+  "Takes a dot-notated keyword and splits it into a vector of keywords"
+  [k]
+  (map keyword (clojure.string/split (name k) #"[\.]")))
+
 (defn convert-dotmap-to-nested
   "Converts a map with dot-notated keys to a nested map"
-  [hm]
-  (reduce-kv (fn [hm k v]
-               (assoc-in hm (map keyword (clojure.string/split (name k) #"[\.]"))
-                         (if (map? v)
-                           (convert-dotmap-to-nested v)
-                           v)))
-             {} hm))
+  [m]
+  (reduce (fn [m [k v]] (assoc-in m (dot-keyword-to-unnested-vector k) v)) {} m))
 
 (defn is-dot-notated?
   "Checks if a keyword is in dot-notation"
