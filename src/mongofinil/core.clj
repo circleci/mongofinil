@@ -113,6 +113,28 @@
          results)))
     f))
 
+(defn wrap-output-incomplete?
+  "Wrap f to add metadata about whether the returned document is incomplete"
+  [f]
+  (fn [& args]
+    (let [results (apply f args)
+          ;; functions like `set-fields!` should propagate the :incomplete? metadata of their
+          ;; first argument.
+          write-incomplete? (-> args first meta :incomplete?)
+          ;; functions like `where` are incomplete if they have an :only arg.
+          read-incomplete? (boolean (extract-congo-argument args :only))
+          incomplete? (if (nil? write-incomplete?)
+                        read-incomplete?
+                        write-incomplete?)]
+      (throw-if-not (seq? results) "expected seq")
+      (map
+        (fn [result]
+          (when result
+            (if (map? result)
+              (vary-meta result assoc :incomplete? incomplete?)
+              result)))
+        results))))
+
 (defn wrap-debug
   "Wrap f to add default output values for the result of f"
   [f]
@@ -136,7 +158,8 @@
                (-> (for [[k v] result]
                      (if (contains? keywords k) [k (keyword v)]
                          [k v]))
-                   (#(into {} %))))
+                   (#(into {} %))
+                   (with-meta (meta result))))
              result))
          results)))
     f))
@@ -327,6 +350,7 @@
           (wrap-validate validate-input)
           (wrap-input-defaults input-defaults)
           (wrap-output-defaults output-defaults)
+          (wrap-output-incomplete?)
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
