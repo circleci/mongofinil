@@ -301,6 +301,14 @@
   (create! {:x 5 :y 6 :z 7})
   (find-one :only [:x]) => (just {:x 5 :_id anything}))
 
+(fact "incomplete? works"
+  (create! {:x 5 :y 6 :z 7})
+  (meta (find-one)) => (just {:incomplete? false})
+  (meta (find-one :only [:x])) => (just {:incomplete? true})
+  (meta (find-one :only {:y false})) => (just {:incomplete? true})
+  (meta (set-fields! (find-one) {:a :b})) => (just {:incomplete? false})
+  (meta (set-fields! (find-one :only [:x]) {:a :b})) => (just {:incomplete? true}))
+
 (fact "`all and :keywords work together"
   (create! {:kw "state"})
   (-> (all) first :kw) => :state)
