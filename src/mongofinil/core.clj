@@ -291,29 +291,23 @@
 (defn call-pre-hooks [hooks row]
   ((some-hooks hooks) row))
 
-(defn call-post-hooks-singular [hooks row]
-  ((some-hooks hooks) row))
+(defn call-post-hooks [hooks rows]
+  (map (fn [row]
+         ((some-hooks hooks) row))
+       rows))
 
-(defn call-post-hooks-plural [hooks rows]
-  (map #(call-post-hooks-singular hooks %) rows))
-
-(defn call-post-hooks [hooks returns-list rows]
-  (if returns-list
-    (call-post-hooks-plural hooks rows)
-    (call-post-hooks-singular hooks rows)))
-
-(defn wrap-hooks [f returns-list model-hooks fn-hooks]
+(defn wrap-hooks [f model-hooks fn-hooks]
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
     (fn [& args]
       (if (or (empty? args) (empty? pre-hooks))
-        (call-post-hooks post-hooks returns-list (apply f args))
+        (call-post-hooks post-hooks (apply f args))
         (let [[row & opts] args]
           (->> row
                (call-pre-hooks pre-hooks)
                (#(apply f % opts))
-               (call-post-hooks post-hooks returns-list)))))))
+               (call-post-hooks post-hooks)))))))
 
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
@@ -343,9 +337,12 @@
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
-          (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
+
+          ;; run before transient so that hooks have access to the transients
+          (wrap-hooks (dissoc model-hooks :ref) hooks)
+
           ;; always run before transient so that you can be required and transient
           (wrap-validate validate-input)
           (wrap-input-defaults input-defaults)
@@ -353,9 +350,9 @@
           (wrap-output-incomplete?)
           (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
+          (wrap-hooks (select-keys model-hooks [:ref]) (when output-ref
+                                                              {:ref [:post]}))
           (wrap-unwrap-single-object returns-list)
-          (wrap-hooks returns-list (select-keys model-hooks [:ref]) (when output-ref
-                                                                      {:ref [:post]}))
           (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 
