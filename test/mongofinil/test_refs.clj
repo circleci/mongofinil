@@ -250,8 +250,8 @@
 (fact "find-by-id has an error with an invalid id causes an error"
   (find-by-id "") => (throws Exception #"Got empty string")
 
-  (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
-  (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
+  (find-by-ids [""]) => (throws Exception #"Got empty string")
+  (find-by-ids ["012345678901234568790123" nil]) => (throws Exception #"Expected id, got nil"))
 
 (fact "push! works"
   (let [orig (create! {:a []})
