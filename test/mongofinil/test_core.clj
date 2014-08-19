@@ -61,6 +61,9 @@
            ;; keyword
            {:name :kw :keyword true}
 
+           ;; strings
+           {:name :strs :strings true}
+
            ;; unique
            {:name :unique1} ;; for congo interop, not a feature
 
@@ -141,6 +144,10 @@
 (fact "keyword works"
   (create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
   (find-one) => (contains {:x 5 :kw :asd}))
+
+(fact "strings works"
+  (create! {:strs {"a b" 1 "x/y" 2}}) => (contains {:strs {"a b" 1 "x/y" 2}})
+  (find-one) => (contains {:strs {"a b" 1 "x/y" 2}}))
 
 
 (fact "apply-defaults works"
