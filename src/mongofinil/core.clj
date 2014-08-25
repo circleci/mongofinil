@@ -7,7 +7,9 @@
             [clj-time.core :as time])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
-  (:import org.bson.types.ObjectId))
+  (:import org.bson.types.ObjectId
+           (org.joda.time DateTime
+                          DateTimeZone)))
 
 (defn col-validators
   "Returns a vector of validators from field definitions"
@@ -143,6 +145,19 @@
       (println "coming out:\n" results)
       results)))
 
+(extend-protocol congo-coerce/ConvertibleToMongo
+  DateTime
+  (clojure->mongo [^DateTime dt]
+    (.toDate dt)))
+
+(def utc DateTimeZone/UTC)
+(assert utc)
+
+(extend-protocol congo-coerce/ConvertibleFromMongo
+  java.util.Date
+  (mongo->clojure [^java.util.Date d keywordize]
+    (DateTime. d utc)))
+
 (declare coerce)
 
 (defn coerce-map [m {:keys [keywords strings] :as options}]
@@ -164,6 +179,7 @@
                   options)
     (instance? java.util.Map obj)
       (coerce-map obj options)
+    (instance? java.util.Date obj) (DateTime. obj utc)
     :else obj))
 
 (defn wrap-translations

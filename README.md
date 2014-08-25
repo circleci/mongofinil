@@ -58,6 +58,7 @@ Now use it:
   - :use-refs returns refs instead of lists and hashes.
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
   - set-fields! returns the new, updated object. Updates refs if necessary
+  - dates are always returned as `org.joda.time.DateTime` objects
 
 ### TODO
  - defapi

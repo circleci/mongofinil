@@ -149,6 +149,11 @@
   (create! {:strs {"a b" 1 "x/y" 2}}) => (contains {:strs {"a b" 1 "x/y" 2}})
   (find-one) => (contains {:strs {"a b" 1 "x/y" 2}}))
 
+(fact "dates use joda"
+  (let [t (time/now)
+        id (:_id (create! {:time t}))]
+    (:time (find-by-id id)) => t))
+
 
 (fact "apply-defaults works"
   (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} nil) => (just {:x 5 :y 6 :z 9}))
