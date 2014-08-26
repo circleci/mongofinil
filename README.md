@@ -55,6 +55,7 @@ Now use it:
 
 #### Notes
   - :keyword true returns keywords for keys instead of strings
+  - :strings true returns maps with string keys, instead of recursive keywordization
   - :use-refs returns refs instead of lists and hashes.
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
   - set-fields! returns the new, updated object. Updates refs if necessary
