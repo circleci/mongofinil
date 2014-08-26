@@ -3,7 +3,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
 
                  ;; DB
-                 [congomongo "0.4.4"]
+                 [circleci/congomongo "0.4.5-58d755baa9dc5daeab67516058ccd2a590766a2f"]
 
                  ;; Misc
                  [clj-time "0.4.4"]
