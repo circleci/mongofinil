@@ -58,6 +58,7 @@ Now use it:
   - :use-refs returns refs instead of lists and hashes.
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
   - set-fields! returns the new, updated object. Updates refs if necessary
+  - :sensitive option filters a string or regex from query logs
 
 ### TODO
  - defapi
