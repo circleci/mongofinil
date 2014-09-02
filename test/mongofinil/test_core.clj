@@ -61,6 +61,9 @@
            ;; keyword
            {:name :kw :keyword true}
 
+           ;; strings
+           {:name :strs :strings true}
+
            ;; unique
            {:name :unique1} ;; for congo interop, not a feature
 
@@ -141,6 +144,15 @@
 (fact "keyword works"
   (create! {:x 5 :kw :asd}) => (contains {:x 5 :kw :asd})
   (find-one) => (contains {:x 5 :kw :asd}))
+
+(fact "strings works"
+  (create! {:strs {"a b" 1 "x/y" 2}}) => (contains {:strs {"a b" 1 "x/y" 2}})
+  (find-one) => (contains {:strs {"a b" 1 "x/y" 2}}))
+
+(fact "dates use joda"
+  (let [t (time/now)
+        id (:_id (create! {:time t}))]
+    (:time (find-by-id id)) => t))
 
 
 (fact "apply-defaults works"
@@ -335,8 +347,8 @@
 (fact "find-by-id has an error with an invalid id causes an error"
   (find-by-id "") => (throws Exception #"Got empty string")
 
-  (find-by-ids [""]) => (throws RuntimeException #"Got empty string")
-  (find-by-ids ["012345678901234568790123" nil]) => (throws RuntimeException #"Expected id, got nil"))
+  (find-by-ids [""]) => (throws Exception #"Got empty string")
+  (find-by-ids ["012345678901234568790123" nil]) => (throws Exception #"Expected id, got nil"))
 
 (fact "push! works"
   (let [orig (create! {:a []})

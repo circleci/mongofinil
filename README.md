@@ -55,9 +55,12 @@ Now use it:
 
 #### Notes
   - :keyword true returns keywords for keys instead of strings
+  - :strings true returns maps with string keys, instead of recursive keywordization
   - :use-refs returns refs instead of lists and hashes.
   - The order of fields matters for defaults. Defaults are run in the order the fields are listed
   - set-fields! returns the new, updated object. Updates refs if necessary
+  - dates are always returned as `org.joda.time.DateTime` objects
+  - :sensitive option filters a string or regex from query logs
 
 ### TODO
  - defapi

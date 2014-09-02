@@ -1,14 +1,16 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
   (:require [somnium.congomongo :as congo]
-            [somnium.congomongo.coerce :as congo-coerce]
+            [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time])
+            [clj-time.core :as time]
+            [clojure.string :as str])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
-  (:import org.bson.types.ObjectId))
-
+  (:import org.bson.types.ObjectId
+           (org.joda.time DateTime
+                          DateTimeZone)))
 
 (defn col-validators
   "Returns a vector of validators from field definitions"
@@ -144,25 +146,49 @@
       (println "coming out:\n" results)
       results)))
 
-(defn wrap-convert-keywords
+(extend-protocol congo-coerce/ConvertibleToMongo
+  DateTime
+  (clojure->mongo [^DateTime dt]
+    (.toDate dt)))
+
+(def utc DateTimeZone/UTC)
+(assert utc)
+
+(extend-protocol congo-coerce/ConvertibleFromMongo
+  java.util.Date
+  (mongo->clojure [^java.util.Date d keywordize]
+    (DateTime. d utc)))
+
+(declare coerce)
+
+(defn coerce-map [m {:keys [keywords strings] :as options}]
+  (let [subopts (dissoc options :keywords)
+        kvps (for [[k v] m]
+               (let [k (keyword k)]
+                 (cond
+                   (contains? keywords k) [k (keyword v)]
+                   (contains? strings k) [k v]
+                   :else [k (coerce v subopts)])))]
+    (with-meta (into {} kvps) (meta m))))
+
+(defn coerce [obj options]
+  (cond
+    (instance? java.util.List obj) (mapv #(coerce % options) obj)
+    (instance? com.mongodb.DBObject obj)
+      (coerce-map (for [k (.keySet ^com.mongodb.DBObject obj)]
+                    [k (.get obj k)])
+                  options)
+    (instance? java.util.Map obj)
+      (coerce-map obj options)
+    (instance? java.util.Date obj) (DateTime. obj utc)
+    :else obj))
+
+(defn wrap-translations
   "If the result of f contains keys which are in keywords, convert them to keywords"
-  [f keywords]
-  (if keywords
-    (fn [& args]
-      (let [results (apply f args)]
-        (throw-if-not (seq? results) "expected seq")
-        (map
-         (fn [result]
-           (if (map? result)
-             (do
-               (-> (for [[k v] result]
-                     (if (contains? keywords k) [k (keyword v)]
-                         [k v]))
-                   (#(into {} %))
-                   (with-meta (meta result))))
-             result))
-         results)))
-    f))
+  [f options]
+  (fn [& args]
+    (binding [*translations* (assoc *translations* [:mongo :clojure] #(coerce % options))]
+      (apply f args))))
 
 (defn wrap-validate
   "If validators is true, run validate!"
@@ -258,6 +284,13 @@
 (defn str-take [n str]
   (.substring str 0 (min n (count str))))
 
+(defn log-message [x & {:keys [sensitive]}]
+  (let [msg (str x)
+        msg (if sensitive
+              (str/replace msg sensitive "%FILTERED%")
+              msg)]
+    (str-take 150 msg)))
+
 (defn wrap-profile
   [f time-in-millis ns name]
   (fn [& args]
@@ -269,8 +302,10 @@
         (when-let [msecs (when (time/before? start stop)
                            ;; clock skew
                            (time/in-msecs (time/interval start stop)))]
-          (when (> msecs time-in-millis)
-            (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (str-take 150 (str args))))))
+          (when (>= msecs time-in-millis)
+            (let [sensitive (extract-congo-argument args :sensitive)
+                  msg (log-message args :sensitive sensitive)]
+              (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
         result))))
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
@@ -328,6 +363,7 @@
                   input-transients
                   validate-input
                   keywords
+                  strings
                   hooks
                   profile
                   returns-list]
@@ -343,6 +379,7 @@
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
           (wrap-profile profile ns name)
+          (wrap-translations {:keywords keywords :strings strings})
           (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
           (wrap-wrap-single-object returns-list)
           (wrap-transients input-transients)
@@ -351,7 +388,6 @@
           (wrap-input-defaults input-defaults)
           (wrap-output-defaults output-defaults)
           (wrap-output-incomplete?)
-          (wrap-convert-keywords keywords)
           (wrap-refs input-ref output-ref)
           (wrap-unwrap-single-object returns-list)
           (wrap-hooks returns-list (select-keys model-hooks [:ref]) (when output-ref
@@ -363,7 +399,7 @@
 ;;; Generate the function templates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords profile-reads profile-writes]
+(defn create-row-functions [collection row-validators field-defs defaults transients use-refs keywords strings profile-reads profile-writes]
   (let [validators (into row-validators (col-validators field-defs))
 
         valid? {:fn (fn [row] (mv/valid? validators row))
@@ -385,6 +421,7 @@
                     :output-ref use-refs
                     :input-ref use-refs
                     :keywords keywords
+                    :strings strings
                     :name "find-by-id"
                     :hooks {:load [:post]}
                     :profile profile-reads}
@@ -397,6 +434,7 @@
                      :output-defaults defaults
                      :output-ref use-refs
                      :keywords keywords
+                     :strings strings
                      :returns-list true
                      :name "find-by-ids"
                      :hooks {:load [:post]}
@@ -411,6 +449,7 @@
                :arglists '([where & options])
                :output-ref use-refs
                :keywords keywords
+               :strings strings
                :returns-list true
                :output-defaults defaults
                :name "where"
@@ -431,6 +470,7 @@
                   :arglists '([& options])
                   :output-ref use-refs
                   :keywords keywords
+                  :strings strings
                   :output-defaults defaults
                   :name "find-one"
                   :hooks {:load [:post]}
@@ -441,6 +481,7 @@
              :arglists '([& options])
              :output-ref use-refs
              :keywords keywords
+             :strings strings
              :returns-list true
              :output-defaults defaults
              :name "all"
@@ -454,6 +495,7 @@
             :input-transients transients
             :validate-input validators
             :keywords keywords
+            :strings strings
             :name "nu"}
 
         create! {:fn (fn [val]
@@ -465,6 +507,7 @@
                  :input-transients transients
                  :validate-input validators
                  :keywords keywords
+                 :strings strings
                  :name "create!"
                  :hooks [[:create [:pre]]
                          [:update [:pre]]
@@ -479,6 +522,7 @@
                           :input-ref false
                           :output-ref use-refs
                           :keywords keywords
+                          :strings strings
                           :returns-list false
                           :output-defaults defaults
                           :name "find-and-modify!"
@@ -503,6 +547,7 @@
                      :input-ref use-refs
                      :output-ref use-refs
                      :keywords keywords
+                     :strings strings
                      ;; validate-input validators
                      :name "set-fields!"
                      :hooks {:update [:pre :post]
@@ -525,6 +570,7 @@
                        :input-ref use-refs
                        :output-ref use-refs
                        :keywords keywords
+                       :strings strings
                        ;; validate-input validators
                        :name "unset-fields!"
                        :hooks {:update [:pre :post]
@@ -550,6 +596,7 @@
                :hooks {:update [:pre :post]
                        :load [:post]}
                :keywords keywords
+               :strings strings
                :name "push!"
                :profile profile-writes}
 
@@ -571,6 +618,7 @@
                      :hooks {:update [:pre :post]
                              :load [:post]}
                      :keywords keywords
+                     :strings strings
                      :name "add-to-set!"
                      :profile profile-writes}
 
@@ -590,6 +638,7 @@
                :output-ref use-refs
                :hook :update
                :keywords keywords
+               :strings strings
                :hooks {:update [:pre :post]
                        :load [:post]}
                :name "pull!"
@@ -609,6 +658,7 @@
                   :input-ref use-refs
                   :output-ref use-refs
                   :keywords keywords
+                  :strings strings
                   :hook :update
                   ;;: validate-input validators
                   :name "replace!"
@@ -625,6 +675,7 @@
                :output-ref use-refs
                :hook :update
                :keywords keywords
+               :strings strings
                :validate-input validators
                :name "save!"
                :hooks {:update [:pre :post]
@@ -642,7 +693,7 @@
      replace! save!
      push! pull! add-to-set!]))
 
-(defn create-col-function [collection field defaults transients use-refs keywords profile-reads profile-writes]
+(defn create-col-function [collection field defaults transients use-refs keywords strings profile-reads profile-writes]
   (let [{:keys [findable default validators name required transient foreign]} field
 
         find-one-by-X-fn (fn [val & options]
@@ -655,6 +706,7 @@
                    :output-defaults defaults
                    :returns-list true
                    :keywords keywords
+                   :strings strings
                    :profile profile-reads
                    :name (format "find-by-%s" (clojure.core/name name))}
 
@@ -662,6 +714,7 @@
                        :output-ref use-refs
                        :output-defaults defaults
                        :keywords keywords
+                       :strings strings
                        :profile profile-reads
                        :name (format "find-one-by-%s" (clojure.core/name name))}
 
@@ -672,6 +725,7 @@
                     :returns-list true
                     :output-ref use-refs
                     :keywords keywords
+                    :strings strings
                     :profile profile-reads
                     :name (format "find-by-%s!" (clojure.core/name name))}
 
@@ -681,6 +735,7 @@
                         :output-defaults defaults
                         :output-ref use-refs
                         :keywords keywords
+                        :strings strings
                         :profile profile-reads
                         :name (format "find-one-by-%s!" (clojure.core/name name))}]
     (when findable
@@ -701,9 +756,10 @@
                        :findable false
                        :default nil
                        :keyword nil
+                       :strings nil
                        :validator nil
                        :transient false} args)]
-    (throw-if-not (= (count result) 7)
+    (throw-if-not (= (count result) 8)
                   "Unexpected keys found in %s" args)
     result))
 
@@ -716,8 +772,9 @@
         defaults (into [] (eager-map (fn [f] [(:name f) (:default f)]) fields))
         transients (into [] (eager-map :name (filter :transient fields)))
         keywords (into #{} (eager-map :name (filter :keyword fields)))
-        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords profile-reads profile-writes)
-        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords profile-reads profile-writes)))]
+        strings (into #{} (eager-map :name (filter :strings fields)))
+        row-templates (create-row-functions collection validators fields defaults transients use-refs keywords strings profile-reads profile-writes)
+        col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords strings profile-reads profile-writes)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)) hooks)))
 
 
