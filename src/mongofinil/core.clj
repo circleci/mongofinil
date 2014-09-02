@@ -4,7 +4,8 @@
             [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time])
+            [clj-time.core :as time]
+            [clojure.string :as str])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
   (:import org.bson.types.ObjectId
@@ -282,6 +283,13 @@
 
 (defn str-take [n str]
   (.substring str 0 (min n (count str))))
+
+(defn log-message [x & {:keys [sensitive]}]
+  (let [msg (str x)
+        msg (if sensitive
+              (str/replace msg sensitive "%FILTERED%")
+              msg)]
+    (str-take 150 msg)))
 
 (defn wrap-profile
   [f time-in-millis ns name]
