@@ -294,8 +294,10 @@
         (when-let [msecs (when (time/before? start stop)
                            ;; clock skew
                            (time/in-msecs (time/interval start stop)))]
-          (when (> msecs time-in-millis)
-            (println (format "slow query (%dms): (%s/%s %s)" msecs ns name (str-take 150 (str args))))))
+          (when (>= msecs time-in-millis)
+            (let [sensitive (extract-congo-argument args :sensitive)
+                  msg (log-message args :sensitive sensitive)]
+              (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
         result))))
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
