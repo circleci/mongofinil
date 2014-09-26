@@ -1,6 +1,4 @@
-# A No-RM for Clojure and Mongo. ![CircleCI Status][]
-
-[CircleCI Status]: https://circleci.com/gh/circleci/mongofinil.png
+# A No-RM for Clojure and Mongo. [![Circle CI](https://circleci.com/gh/circleci/mongofinil.png?style=badge)](https://circleci.com/gh/circleci/mongofinil)
 
 Mongofinil reads a declarative specification of your models, and generates a namespaced DSL for that model.
 
