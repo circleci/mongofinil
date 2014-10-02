@@ -149,6 +149,15 @@
   (create! {:strs {"a b" 1 "x/y" 2}}) => (contains {:strs {"a b" 1 "x/y" 2}})
   (find-one) => (contains {:strs {"a b" 1 "x/y" 2}}))
 
+(fact "strings coerces its children"
+  (let [new (create! {:strs {"a b" {:c 1} "x/y" {:e {:f 2}}}})
+        found (find-one)]
+    new => (contains {:strs {"a b" {:c 1} "x/y" {:e {:f 2}}}})
+    (type (get-in new [:strs "a b"])) => clojure.lang.PersistentArrayMap
+
+    found => (contains {:strs {"a b" {:c 1} "x/y" {:e {:f 2}}}})
+    (type (get-in found [:strs "a b"])) => clojure.lang.PersistentArrayMap))
+
 (fact "dates use joda"
   (let [t (time/now)
         id (:_id (create! {:time t}))]
