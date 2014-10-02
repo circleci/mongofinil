@@ -162,9 +162,7 @@
 (declare coerce)
 
 (defn coerce-map [m {:keys [keywords strings string-keys] :as options}]
-  (let [subopts (-> options
-                    (dissoc :keywords)
-                    (dissoc :string-keys))
+  (let [subopts (dissoc options :keywords :string-keys)
         kvps (for [[k v] m]
                (let [k (if string-keys k (keyword k))]
                  (cond
