@@ -243,22 +243,31 @@
   [k]
   (boolean (re-find (re-matcher #"[\.]" (name k)))))
 
-;; TODO: This doesn't respect the strings or keywords options!
 (defn deep-merge-with-like-mongo
   "Merge new fields into an old map the same way MongoDB does.
   Note that although this plays nicely with dot-notated nested fields it 
   does not play nicely with indexes at the moment"
-  [old_map new_map]
+  [old_map new_map strings]
   (if (empty? new_map) 
     old_map
     (let [[k v] (first new_map)]
       (if (is-dot-notated? k)
-              (deep-merge-with-like-mongo
-                (assoc-in old_map (map keyword (clojure.string/split (name k) #"[\.]")) v)
-                (dissoc new_map k))
-              (deep-merge-with-like-mongo 
-                (merge old_map {k v}) 
-                (dissoc new_map k))))))
+        (deep-merge-with-like-mongo
+         (assoc-in old_map
+                   (reduce (fn [acc next-key]
+                             ;; If the previous key is in strings, then don't
+                             ;; keyword-ify the next key in the chain
+                             (conj acc (if (contains? strings (last acc))
+                                         next-key
+                                         (keyword next-key))))
+                           [] (clojure.string/split (name k) #"[\.]"))
+                   v)
+         (dissoc new_map k)
+         strings)
+        (deep-merge-with-like-mongo 
+         (merge old_map {k v}) 
+         (dissoc new_map k)
+         strings)))))
 
 ;;; Some functions return single objects, some return lists. We apply all the
 ;;; functions to each item in the list, because those lists are lazy. So we need
@@ -540,7 +549,7 @@
                                                                       :only (keys new-fields)
                                                                       :upsert? false)
                                               "Expected result, got nil")]
-                             (deep-merge-with-like-mongo old new-fields)))
+                             (deep-merge-with-like-mongo old new-fields strings)))
 
                      :doc "new-fields is a map. mongo atomically $sets the fields in new-field, without disturbing other fields on the row that may have been changed in another thread/process"
                      :arglists '([row new-field])
