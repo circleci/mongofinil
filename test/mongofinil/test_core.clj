@@ -234,25 +234,37 @@
          (let [new_fields_1 {:food.summer "trout"}
               new_fields_2 {:food {:summer "trout"}}
               new_fields_3 {:food.spring {:morning "sunflower"}}]
-           (core/deep-merge-with-like-mongo old new_fields_1) => (contains {:food {:summer "trout" :winter "nuts" :spring {:morning "dandelion" :afternoon "squirrel"}} :name "ursa"})
-           (core/deep-merge-with-like-mongo old new_fields_2) => (contains {:food {:summer "trout"} :name "ursa"})
-           (core/deep-merge-with-like-mongo old new_fields_2) =not=> (contains {:food {:winter "nuts"}})
-           (core/deep-merge-with-like-mongo old new_fields_3) => (contains {:food {:winter "nuts" :summer "salmon" :spring {:morning "sunflower"}} :name "ursa"})
+           (core/deep-merge-with-like-mongo old new_fields_1 #{}) => (contains {:food {:summer "trout" :winter "nuts" :spring {:morning "dandelion" :afternoon "squirrel"}} :name "ursa"})
+           (core/deep-merge-with-like-mongo old new_fields_2 #{}) => (contains {:food {:summer "trout"} :name "ursa"})
+           (core/deep-merge-with-like-mongo old new_fields_2 #{}) =not=> (contains {:food {:winter "nuts"}})
+           (core/deep-merge-with-like-mongo old new_fields_3 #{}) => (contains {:food {:winter "nuts" :summer "salmon" :spring {:morning "sunflower"}} :name "ursa"})
+      true)))
+
+(fact "deep-merge-like-mongo works properly"
+  (create! {:strs {"ab" {:c 2}}})
+  (let [old (find-one)]
+    old => (contains {:strs {"ab" {:c 2}}}) ;; just making sure
+    (let [new_fields_1 {:strs.ab.c 3}
+          new_fields_2 {:strs.ab 4}]
+      (core/deep-merge-with-like-mongo old new_fields_1 #{:strs}) => (contains {:strs {"ab" {:c 3}}})
+      (core/deep-merge-with-like-mongo old new_fields_2 #{:strs}) => (contains {:strs {"ab" 4}})
+      (core/deep-merge-with-like-mongo old new_fields_2 #{:strs}) =not=> (contains {:strs {"ab" {:c 2}}})
+      (-> (core/deep-merge-with-like-mongo old new_fields_2 #{:strs}) :strs :ab) => nil
       true)))
 
 (fact "verify that our deep-nesting works in set-fields!"
   (create! {:food {:summer "salmon" :winter "nuts"} :name "ursa"})
-      (let [old (find-one)]
-        old => (contains {:food {:summer "salmon" :winter "nuts"} :name "ursa"})
-        (let [new_1 (set-fields! old {:food.summer "trout"})
-              newer_1 (find-one)
-              new_2 (set-fields! old {:food {:summer "trout"}})
-              newer_2 (find-one)]
-          new_1 => newer_1
-          new_1 => (contains {:food {:summer "trout" :winter "nuts"} :name "ursa"})
-          new_2 => newer_2
-          new_2 => (contains {:food {:summer "trout"} :name "ursa"})
-          new_2 =not=> (contains {:food {:winter "nuts"}}))))
+  (let [old (find-one)]
+    old => (contains {:food {:summer "salmon" :winter "nuts"} :name "ursa"})
+    (let [new_1 (set-fields! old {:food.summer "trout"})
+          newer_1 (find-one)
+          new_2 (set-fields! old {:food {:summer "trout"}})
+          newer_2 (find-one)]
+      new_1 => newer_1
+      new_1 => (contains {:food {:summer "trout" :winter "nuts"} :name "ursa"})
+      new_2 => newer_2
+      new_2 => (contains {:food {:summer "trout"} :name "ursa"})
+      new_2 =not=> (contains {:food {:winter "nuts"}}))))
 
 (fact "ensure unset-field! works as planned"
   ;; add and check expected values
