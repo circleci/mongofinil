@@ -245,6 +245,7 @@
   [k]
   (boolean (re-find (re-matcher #"[\.]" (name k)))))
 
+;; TODO: This doesn't respect the strings or keywords options!
 (defn deep-merge-with-like-mongo
   "Merge new fields into an old map the same way MongoDB does.
   Note that although this plays nicely with dot-notated nested fields it 
