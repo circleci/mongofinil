@@ -714,7 +714,8 @@
                      :output-defaults defaults
                      :keywords keywords
                      :strings strings
-                     :profile profile-reads}
+                     :profile profile-reads
+                     :hooks {:load [:post]}}
         
         find-by-X (assoc find-by-map
                     :fn find-by-X-fn
