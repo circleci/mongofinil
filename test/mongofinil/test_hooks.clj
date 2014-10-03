@@ -28,9 +28,12 @@
 
 (fact "post hooks are triggered"
   (bond/with-spy [load-hook]
-    (let [orig (create! {})]
+    (let [orig (create! {:x "x"})]
       orig => (contains {:hook-count 1})
-      (-> load-hook bond/calls count) => 1)))
+      (-> load-hook bond/calls count) => 1))
+  (bond/with-spy [load-hook]
+    (find-one-by-x "x")
+    (-> load-hook bond/calls count) => 1))
 
 (fact "pre hooks are triggered"
   (bond/with-spy [pre-update-hook]
