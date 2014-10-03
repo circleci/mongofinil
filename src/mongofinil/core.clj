@@ -710,31 +710,31 @@
                            (apply congo/fetch-one collection :where {(keyword name) val} options))
         find-by-X-fn (fn [val & options]
                        (apply congo/fetch collection :where {(keyword name) val} options))
-        find-by-map {:output-ref use-refs
-                     :output-defaults defaults
-                     :keywords keywords
-                     :strings strings
-                     :profile profile-reads
-                     :hooks {:load [:post]}}
+        find-by-X-template {:output-ref use-refs
+                            :output-defaults defaults
+                            :keywords keywords
+                            :strings strings
+                            :profile profile-reads
+                            :hooks {:load [:post]}}
         
-        find-by-X (assoc find-by-map
+        find-by-X (assoc find-by-X-template
                     :fn find-by-X-fn
                     :returns-list true
                     :name (format "find-by-%s" (clojure.core/name name)))
         
-        find-one-by-X (assoc find-by-map
+        find-one-by-X (assoc find-by-X-template
                         :fn find-one-by-X-fn
                         :returns-list false
                         :name (format "find-one-by-%s" (clojure.core/name name)))
         
-        find-by-X! (assoc find-by-map
+        find-by-X! (assoc find-by-X-template
                      :fn (fn [val & options]
                            (-> (apply find-by-X-fn val options)
                                (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
                      :returns-list true
                      :name (format "find-by-%s!" (clojure.core/name name)))
 
-        find-one-by-X! (assoc find-by-map
+        find-one-by-X! (assoc find-by-X-template
                          :fn (fn [val & options]
                                (-> (apply find-one-by-X-fn val options)
                                    (throw-if-not "Couldn't find row with %s=%s on collection %s" name val collection)))
