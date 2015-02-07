@@ -311,7 +311,7 @@
             stop (time/now)]
         (when-let [msecs (when (time/before? start stop)
                            ;; clock skew
-                           (time/in-msecs (time/interval start stop)))]
+                           (time/in-millis (time/interval start stop)))]
           (when (>= msecs time-in-millis)
             (let [sensitive (extract-congo-argument args :sensitive)
                   msg (log-message args :sensitive sensitive)]

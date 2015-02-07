@@ -1,4 +1,4 @@
-(defproject circleci/mongofinil "0.2.15"
+(defproject circleci/mongofinil "0.2.16"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.6.0"]
 
@@ -6,7 +6,7 @@
                  [circleci/congomongo "0.4.5-58d755baa9dc5daeab67516058ccd2a590766a2f"]
 
                  ;; Misc
-                 [clj-time "0.4.4"]
+                 [clj-time "0.9.0"]
                  [org.clojure/tools.logging "0.2.3"]
 
                  [bultitude "0.1.7"]
