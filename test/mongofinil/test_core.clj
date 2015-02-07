@@ -427,7 +427,7 @@
 (fact "wrap-profile handles clock skew"
   (core/wrap-profile println 1 "foo" "bar") => anything
   (let [counter (atom 0)
-        before (time/minus (time/now) (time/secs 2))
+        before (time/minus (time/now) (time/seconds 2))
         after (time/now)
         stateful-time (fn []
                         (swap! counter inc)
