@@ -360,11 +360,19 @@
                (#(apply f % opts))
                (call-post-hooks post-hooks returns-list)))))))
 
+(defn wrap-fn-middleware
+  [f middleware]
+  (if (nil? middleware)
+    f
+    (let [handler (middleware f)]
+      (assert (fn? handler) "middleware should return a function")
+        handler)))
+
 (defn add-functions
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
   namespace"
-  [ns function-defs model-hooks]
+  [ns function-defs model-hooks fn-middleware]
   (doseq [fdef function-defs]
     (let [{:keys [name fn
                   doc arglists
@@ -402,6 +410,7 @@
           (wrap-unwrap-single-object returns-list)
           (wrap-hooks returns-list (select-keys model-hooks [:ref]) (when output-ref
                                                                       {:ref [:post]}))
+          (wrap-fn-middleware fn-middleware)
           (intern-fn {:ns ns :name name :doc doc :arglists arglists})))))
 
 
@@ -519,9 +528,9 @@
                  :keywords keywords
                  :strings strings
                  :name "create!"
-                 :hooks [[:create [:pre]]
-                         [:update [:pre]]
-                         [:load [:post]]]
+                 :hooks {:create [:pre]
+                         :update [:pre]
+                         :load [:post]}
                  :profile profile-writes}
 
         ;;; raw find-and-modify
@@ -767,7 +776,7 @@
 
 (defn defmodel
   "Define a DB model from its fields"
-  [collection & {:keys [validators fields use-refs profile-reads profile-writes hooks]
+  [collection & {:keys [validators fields use-refs profile-reads profile-writes hooks fn-middleware]
                  :or {validators [] fields [] use-refs false hooks {}}
                  :as attrs}]
   (let [fields (into [] (eager-map canonicalize-field-defs fields))
@@ -777,7 +786,7 @@
         strings (into #{} (eager-map :name (filter :strings fields)))
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords strings profile-reads profile-writes)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords strings profile-reads profile-writes)))]
-    (add-functions *ns* (into [] (concat col-templates row-templates)) hooks)))
+    (add-functions *ns* (into [] (concat col-templates row-templates)) hooks fn-middleware)))
 
 
 (defn defapi [&args])

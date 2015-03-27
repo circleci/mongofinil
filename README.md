@@ -8,7 +8,7 @@ It takes some inspiration from Mongoid, from the Rails world, but attempts to be
 ### Installation
 
 ```clojure
-    [mongofinil "0.1.11"]
+    [mongofinil "0.2.17"]
 ```
 
 ### Usage
@@ -49,6 +49,27 @@ Now use it:
 ```
 
 
+#### Middleware
+
+Sometimes you need to perform actions around each call of the functions
+mongofinil creates. This typically crops up if one of your models needs to live
+in a different database to the rest of your models.
+
+You can pass a middleware function as part of your model declaration which will
+be wrapped around each of the mongofinil functions as they are created.
+
+```clojure
+(defn wrap-with-foo-db [f]
+  (fn [& args]
+    (somnium.congomongo/with-mongo foo-db-conn
+      (apply f args))))
+
+(mongofinil/defmodel :admins
+  :fields
+  [{:name :username :finaable true}
+   {:name :emails :default []}]
+  :fn-middleware #'wrap-with-foo-db)
+```
 
 
 #### Notes
