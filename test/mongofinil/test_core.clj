@@ -27,6 +27,13 @@
 (defn update-hook [row]
   row)
 
+(defn spyable-middleware-fn [x]
+  x)
+
+(defn fn-middleware [f]
+  (fn [& args]
+    (spyable-middleware-fn (apply f args))))
+
 ;; This isn't sufficient at deeper nesting levels
 (fact "convert-dotmap-to-nested works"
       (let [old_map {:foo {:bar "baz"} :foo_2 "baz_2"}
@@ -74,7 +81,9 @@
           :load {:post #'load-hook}
           :update {:post #'update-hook}}
 
-  :validations [(fn [row] (when false "failing"))])
+  :validations [(fn [row] (when false "failing"))]
+
+  :fn-middleware #'fn-middleware)
 
 (fact "row findable functions are created and work"
   (let [obj1 (create! {:x 1 :y 2 :z 3 :w 4})
@@ -437,6 +446,17 @@
     (with-redefs [time/now stateful-time]
       ((core/wrap-profile println 1 "foo" "bar")) => anything)))
 
+(fact "wrap-middleware-works"
+  (letfn [(foo [x] x)]
+    (core/wrap-fn-middleware foo nil) => #(= foo %)
+    (core/wrap-fn-middleware foo fn-middleware) =not=> #(= foo %)
+    (core/wrap-fn-middleware foo :keyword) => (throws Error)))
+
+(fact "fns-are-wrapped-with-middleware"
+  (bond/with-spy [spyable-middleware-fn]
+    (create! {:y 5}) => (contains {:y 5})
+    (-> spyable-middleware-fn bond/calls count) => 1
+    (-> spyable-middleware-fn bond/calls first :args first) => (contains {:y 5})))
 
 ;;; This works in congomongo 1.9
 ;; (future-fact "calling create twice on a row with an index should raise an error"
