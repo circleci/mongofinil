@@ -519,9 +519,9 @@
                  :keywords keywords
                  :strings strings
                  :name "create!"
-                 :hooks [[:create [:pre]]
-                         [:update [:pre]]
-                         [:load [:post]]]
+                 :hooks {:create [:pre]
+                         :update [:pre]
+                         :load [:post]}
                  :profile profile-writes}
 
         ;;; raw find-and-modify
