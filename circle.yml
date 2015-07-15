@@ -1,0 +1,11 @@
+dependencies:
+  post:
+    - scripts/install-and-run-mongo.sh 2.4.10
+    - scripts/install-and-run-mongo.sh 2.6.9
+    - scripts/install-and-run-mongo.sh 3.0.1
+
+test:
+  override:
+    - MONGO_PORT=21024 lein midje
+    - MONGO_PORT=21026 lein midje
+    - MONGO_PORT=21030 lein midje

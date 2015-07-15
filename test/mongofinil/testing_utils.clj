@@ -5,7 +5,8 @@
 (def test-db
   {:db :mongofinil_test_db
    :host "127.0.0.1"
-   :port 27017})
+   :port (or (some-> (System/getenv "MONGO_PORT") Integer/parseInt)
+             27017)})
 
 (defn congo-connect [{:keys [db host port]}]
   (congo/make-connection db :host host :port port))
@@ -13,6 +14,7 @@
 (defn setup-test-db
   "Initializes the mongodb connection"
   []
+  (println "Connecting to " (str test-db))
   (congo/set-connection! (congo-connect test-db)))
 
 (defn clear-test-db []
