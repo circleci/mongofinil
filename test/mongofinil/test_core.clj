@@ -191,6 +191,22 @@
   (find-one-by-x! 22) => (contains {:dx 5 :dy 6 :dz 22})
   (find-one-by-x 22) => (contains {:dx 5 :dy 6 :dz 22}))
 
+(fact "default works on loading with :only specified as a collection."
+      (congo/insert! :xs {:x 22 :y 33 :z 44})
+      (find-one-by-x! 22 :only [:x :y :def1]) => (contains {:def1 5}))
+
+(fact "default works on loading with :only specified as a map."
+      (congo/insert! :xs {:x 22 :y 33 :z 44})
+      (find-one-by-x! 22 :only {:x true :y true :def1 true}) => (contains {:def1 5}))
+
+(fact "default works on loading with :only specified as a map with false values."
+      (congo/insert! :xs {:x 22 :y 33 :z 44})
+      (find-one-by-x! 22 :only {:x false}) => (contains {:def1 5}))
+
+(fact "default works on loading with :only specified as a map and :_id specified"
+      (congo/insert! :xs {:x 22 :y 33 :z 44})
+      (find-one-by-x! 22 :only {:x true :def1 true :_id false}) => (contains {:def1 5}))
+
 (fact "defaults work in order"
   (create! {:x 11}) => (contains {:x 11 :def1 5 :def2 6 :def3 7 :def4 11}))
 
