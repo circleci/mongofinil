@@ -74,12 +74,17 @@
             (apply f @(first args) (rest args)))
    :else f))
 
-(defn only-true-keys
+(defn- only-opts-true-keys
   "Construct a set from opts given to :only.
 
-`only-opts` is either a collection or a map where all values are true (excluding :_id).
+`only-opts` is either a sequence or a map where all values are true (excluding :_id).
 
-see: https://docs.mongodb.org/manual/tutorial/project-fields-from-query-results/#return-specified-fields-only
+see: https://docs.mongodb.org/manual/tutorial/project-fields-from-query-results/
+
+note:
+
+    You cannot combine inclusion and exclusion semantics in a single
+    projection with the exception of the _id field.
 "
   [only-opts]
   (if (map? only-opts)
@@ -95,17 +100,16 @@ see: https://docs.mongodb.org/manual/tutorial/project-fields-from-query-results/
 
 (defn apply-defaults
   [defaults row only]
-  (let [only-keys (only-true-keys only)]
+  (let [true-keys (only-opts-true-keys only)]
     (if (empty? defaults)
       row
       (do
         (throw-if-not (map? row) "Expected a hash, got %s" row)
         (reduce (fn [r d]
-                  (let [[k v] d
-                        only-true-keys (when only (only-true-keys only))]
-                    (if (and (seq only-true-keys)
-                             (not (contains? only-true-keys k))) ; dont apply
-                                        ; defaults if not in the 'only set
+                  (let [[k v] d]
+                    (if (and (seq true-keys)
+                             (not (contains? true-keys k)))
+                      ;; dont apply defaults if not in the 'only set
                       r
                       (assoc r k
                              (cond
