@@ -74,24 +74,49 @@
             (apply f @(first args) (rest args)))
    :else f))
 
+(defn- only-opts-true-keys
+  "Construct a set from opts given to :only.
+
+`only-opts` is either a sequence or a map where all values are true (excluding :_id).
+
+see: https://docs.mongodb.org/manual/tutorial/project-fields-from-query-results/
+
+note:
+
+    You cannot combine inclusion and exclusion semantics in a single
+    projection with the exception of the _id field.
+"
+  [only-opts]
+  (if (map? only-opts)
+    (if (-> only-opts
+            (dissoc :_id)
+            vals
+            (->> (every? identity)))
+      (-> (keys only-opts)
+          set
+          (disj :_id))
+      #{})
+    (set only-opts)))
+
 (defn apply-defaults
   [defaults row only]
-  (if (empty? defaults)
-    row
-    (do
-      (throw-if-not (map? row) "Expected a hash, got %s" row)
-      (reduce (fn [r d]
-                (let [[k v] d
-                      only (when only (set only))]
-                  (if (and only (not (contains? only k))) ; dont apply
-                                        ; defaults if not in the 'only set
-                    r
-                    (assoc r k
-                           (cond
-                            (contains? r k) (get r k)
-                            (fn? v) (v r)
-                            :else v)))))
-              row defaults))))
+  (let [true-keys (only-opts-true-keys only)]
+    (if (empty? defaults)
+      row
+      (do
+        (throw-if-not (map? row) "Expected a hash, got %s" row)
+        (reduce (fn [r d]
+                  (let [[k v] d]
+                    (if (and (seq true-keys)
+                             (not (contains? true-keys k)))
+                      ;; dont apply defaults if not in the 'only set
+                      r
+                      (assoc r k
+                             (cond
+                               (contains? r k) (get r k)
+                               (fn? v) (v r)
+                               :else v)))))
+                row defaults)))))
 
 (defn extract-congo-argument
   "Given an argument list, extract the keyword argument named 'key'"
