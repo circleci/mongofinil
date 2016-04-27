@@ -1,4 +1,4 @@
-(defproject circleci/mongofinil "0.2.18"
+(defproject circleci/mongofinil "0.2.19"
   :description "A library for Mongoid-like models"
   :dependencies [[org.clojure/clojure "1.6.0"]
 
