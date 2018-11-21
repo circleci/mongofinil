@@ -1,0 +1,15 @@
+(System/nanoTime)
+(class (System/nanoTime))
+(type (System/nanoTime))
+(abs (- 1 2))
+(Math/abs (- 1 2))
+(Math/abs (- 5 2))
+(Math/abs (- 5 10))
+(require 'bond.james)
+*e
+pst
+(pst)
+(require 'mongofinil.test-core)
+(println (seq (.getURLs (java.lang.ClassLoader/getSystemClassLoader))))
+(println (map str (seq (.getURLs (java.lang.ClassLoader/getSystemClassLoader)))))
+(clojure.pprint/pprint (map str (seq (.getURLs (java.lang.ClassLoader/getSystemClassLoader)))))

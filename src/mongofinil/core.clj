@@ -4,7 +4,6 @@
             [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
             [mongofinil.validation :as mv]
             [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time]
             [clojure.string :as str])
 
   (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
@@ -326,22 +325,23 @@ note:
               msg)]
     (str-take 150 msg)))
 
+(defn- milliseconds-since
+  [previous-nanotime]
+  (Math/round ^Double (double (/ (- (System/nanoTime) previous-nanotime) 1e6))))
+
 (defn wrap-profile
   [f time-in-millis ns name]
   (fn [& args]
     (if-not time-in-millis
       (apply f args)
-      (let [start (time/now)
+      (let [start (System/nanoTime)
             result (apply f args)
-            stop (time/now)]
-        (when-let [msecs (when (time/before? start stop)
-                           ;; clock skew
-                           (time/in-millis (time/interval start stop)))]
-          (when (>= msecs time-in-millis)
-            (let [sensitive (extract-congo-argument args :sensitive)
-                  msg (log-message args :sensitive sensitive)]
-              (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
-        result))))
+            msecs (milliseconds-since start)]
+        (when (>= msecs time-in-millis)
+          (let [sensitive (extract-congo-argument args :sensitive)
+                msg (log-message args :sensitive sensitive)]
+            (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg))))
+      result))))
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
   (->> fn-hooks
