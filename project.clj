@@ -1,6 +1,6 @@
 (defproject circleci/mongofinil "0.2.19"
   :description "A library for Mongoid-like models"
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.10.0-beta7"]
 
                  ;; DB
                  [circleci/congomongo "0.4.5-58d755baa9dc5daeab67516058ccd2a590766a2f"]
