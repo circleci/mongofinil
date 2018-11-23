@@ -181,6 +181,8 @@
 (fact "apply-defaults works with only"
   (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} [:z]) => (just {:z 9}))
 
+(fact "apply-defaults works with only exclusion semantics"
+  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} {:z false}) => (just {:x 5 :y 6}))
 
 (fact "default works on creation"
   (create! {:x 7}) => (contains {:dx 5 :dy 6 :dz 7})
