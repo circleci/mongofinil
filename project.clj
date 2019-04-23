@@ -27,4 +27,6 @@
                [lein-midje "3.0.1"]
                [bond "0.2.6" :exclusions [org.clojure/clojure]]]}}
 
-  :plugins [[lein-midje "3.0.1"]])
+  :plugins [[lein-midje "3.0.1"]]
+
+  :deploy-repositories {"releases" {:url "https://repo.clojars.org" :creds :gpg}})
