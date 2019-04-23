@@ -343,6 +343,15 @@ note:
               (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
         result))))
 
+(defn wrap-metrics
+  [f metrics-fn ns name]
+  (fn [& args]
+    (if-not metrics-fn
+      (apply f args)
+      (do
+        (metrics-fn ns name)
+        (apply f args)))))
+
 (defn get-hooks [desired-phase model-hooks fn-hooks]
   (->> fn-hooks
        (map (fn [[crud [& phases]]]
@@ -397,7 +406,7 @@ note:
   "Takes a list of hashes which define functions, wraps those functions
   according to their specification, and interns those functions in the target
   namespace"
-  [ns function-defs model-hooks fn-middleware]
+  [ns function-defs model-hooks fn-middleware metrics-fn]
   (doseq [fdef function-defs]
     (let [{:keys [name fn
                   doc arglists
@@ -421,6 +430,7 @@ note:
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
+          (wrap-metrics metrics-fn ns name)
           (wrap-profile profile ns name)
           (wrap-translations {:keywords keywords :strings strings})
           (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)
@@ -801,7 +811,7 @@ note:
 
 (defn defmodel
   "Define a DB model from its fields"
-  [collection & {:keys [validators fields use-refs profile-reads profile-writes hooks fn-middleware]
+  [collection & {:keys [validators fields use-refs profile-reads profile-writes hooks fn-middleware metrics-fn]
                  :or {validators [] fields [] use-refs false hooks {}}
                  :as attrs}]
   (let [fields (into [] (eager-map canonicalize-field-defs fields))
@@ -811,7 +821,7 @@ note:
         strings (into #{} (eager-map :name (filter :strings fields)))
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords strings profile-reads profile-writes)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords strings profile-reads profile-writes)))]
-    (add-functions *ns* (into [] (concat col-templates row-templates)) hooks fn-middleware)))
+    (add-functions *ns* (into [] (concat col-templates row-templates)) hooks fn-middleware metrics-fn)))
 
 
 (defn defapi [&args])
