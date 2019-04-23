@@ -343,6 +343,15 @@ note:
               (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
         result))))
 
+(defn wrap-metrics
+  [f metrics-fn ns name]
+  (fn [& args]
+    (if-not metrics-fn
+      (apply f args)
+      (do
+        (metrics-fn ns name)
+        (apply f args)))))
+
 (defn get-hooks [desired-phase model-hooks fn-hooks]
   (->> fn-hooks
        (map (fn [[crud [& phases]]]
@@ -409,6 +418,7 @@ note:
                   strings
                   hooks
                   profile
+                  metrics
                   returns-list]
            :or {input-ref false output-ref false
                 input-defaults nil output-defaults nil
@@ -421,6 +431,7 @@ note:
           fdef]
       (throw-if (and input-ref output-ref returns-list) "Function expecting the ref to be updated can't use lists")
       (-> fn
+          (wrap-metrics metrics ns name)
           (wrap-profile profile ns name)
           (wrap-translations {:keywords keywords :strings strings})
           (wrap-hooks returns-list (dissoc model-hooks :ref) hooks)

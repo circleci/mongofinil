@@ -462,6 +462,13 @@
     (with-redefs [time/now stateful-time]
       ((core/wrap-profile println 1 "foo" "bar")) => anything)))
 
+(fact "wrap-metrics-works"
+  (let [metrics (atom [])
+        log-metrics-fn (fn [ns name]
+                         (swap! metrics conj (str ns "." name)))]
+    ((core/wrap-metrics println log-metrics-fn "foo" "bar")) => anything
+    @metrics => ["foo.bar"]))
+
 (fact "wrap-middleware-works"
   (letfn [(foo [x] x)]
     (core/wrap-fn-middleware foo nil) => #(= foo %)
