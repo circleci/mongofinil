@@ -3,8 +3,7 @@
             [somnium.congomongo :as congo]
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
-  (:use midje.sweet
-        [clojure.core.incubator :only (-?>)])
+  (:use midje.sweet)
   (:import org.bson.types.ObjectId))
 
 
