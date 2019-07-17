@@ -1,0 +1,37 @@
+version: 2.1
+
+orbs:
+  midje-with-mongo:
+    jobs:
+      test:
+        parameters:
+          mongo-version:
+            description: "The version of MongoDB to test against"
+            type: string
+        docker:
+          - image: clojure:lein-2.9.1
+          - image: mongo:<< parameters.mongo-version >>
+        steps:
+          - checkout
+          - restore_cache:
+              keys:
+                - v1-m2-{{ checksum "project.clj" }}
+          - run: lein deps
+          - save_cache:
+              key: v1-m2-{{ checksum "project.clj" }}
+              paths:
+                - ~/.m2
+          - run: lein midje
+
+workflows:
+  test:
+    jobs:
+      - midje-with-mongo/test:
+          name: "test-mongo-2.4.10"
+          mongo-version: "2.4.10"
+      - midje-with-mongo/test:
+          name: "test-mongo-2.6.9"
+          mongo-version: "2.6.9"
+      - midje-with-mongo/test:
+          name: "test-mongo-3.0.1"
+          mongo-version: "3.0.1"
