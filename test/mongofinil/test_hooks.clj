@@ -1,11 +1,9 @@
 (ns mongofinil.test-hooks
   (:require [bond.james :as bond]
-            [somnium.congomongo :as congo]
-            [mongofinil.core :as core]
-            [mongofinil.testing-utils :as utils])
-  (:use midje.sweet)
-  (:import org.bson.types.ObjectId))
+            [midje.sweet :refer (anything contains fact)]
 
+            [mongofinil.core :as core]
+            [mongofinil.testing-utils :as utils]))
 
 (utils/setup-test-db)
 (utils/setup-midje)

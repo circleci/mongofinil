@@ -1,10 +1,10 @@
 (ns mongofinil.test-refs
-  (:use midje.sweet)
-  (:require [somnium.congomongo :as congo])
-  (:require [mongofinil.core :as core])
-  (:require [mongofinil.testing-utils :as utils])
-  (:use [mongofinil.helpers :only (ref?)])
-  (:import org.bson.types.ObjectId))
+  (:require [midje.sweet :refer (anything contains fact future-fact just throws)]
+            [somnium.congomongo :as congo]
+
+            [mongofinil.core :as core]
+            [mongofinil.helpers :refer (ref?)]
+            [mongofinil.testing-utils :as utils]))
 
 (defn initializer []
   (congo/add-index! :xs [:a])

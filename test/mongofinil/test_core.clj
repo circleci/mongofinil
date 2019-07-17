@@ -1,10 +1,11 @@
 (ns mongofinil.test-core
   (:require [bond.james :as bond]
             [clj-time.core :as time]
+            [midje.sweet :refer (anything contains fact future-fact just throws)]
             [somnium.congomongo :as congo]
+
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils])
-  (:use midje.sweet)
   (:import org.bson.types.ObjectId))
 
 (defn initializer []

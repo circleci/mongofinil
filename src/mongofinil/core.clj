@@ -1,13 +1,14 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
-  (:require [somnium.congomongo :as congo]
-            [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
-            [mongofinil.validation :as mv]
-            [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time]
-            [clojure.string :as str])
+  (:require [clojure.string :as str]
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
+            [clj-time.core :as time]
+            [somnium.congomongo :as congo]
+            [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
+
+            [mongofinil.helpers :refer (assert! eager-map ref? throw-if throw-if-not throwf)]
+            [mongofinil.validation :as mv]
+            [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId
            (org.joda.time DateTime
                           DateTimeZone)))
@@ -241,7 +242,7 @@ note:
    (ref? id) (coerce-id @id)
    (instance? String id) (do (throw-if (= id "") "Got empty string (\"\"), expected id")
                              (congo/object-id id))
-   (instance? org.bson.types.ObjectId id) id
+   (instance? ObjectId id) id
    (:_id id)  (:_id id)
    :else (throwf "Expected id, got %s" id)))
 

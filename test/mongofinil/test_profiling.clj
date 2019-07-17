@@ -1,9 +1,8 @@
 (ns mongofinil.test-profiling
-  (:require [somnium.congomongo :as congo]
+  (:require [midje.sweet :refer (fact)]
+
             [mongofinil.core :as core]
-            [mongofinil.testing-utils :as utils]
-            [clj-time.core :as time])
-  (:use midje.sweet))
+            [mongofinil.testing-utils :as utils]))
 
 (utils/setup-test-db)
 (utils/setup-midje)
