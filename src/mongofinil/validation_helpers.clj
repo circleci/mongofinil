@@ -58,8 +58,7 @@
   "Takes a map of keys to classes. Validates that each key in map is of the specified class."
   [ks]
   (fn [o]
-    (map-predicate (fn [field cls]
-                     (key-type o field cls)) ks)))
+    (map-predicate #((key-type %1 %2) o) ks)))
 
 (defn is-map? [& [msg]]
   (require-predicate map? msg))
