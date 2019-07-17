@@ -53,7 +53,7 @@
 
            ;; default
            {:name :dx :default 5}
-           {:name :dy :default (fn [b] 6)}
+           {:name :dy :default (fn [_] 6)}
            {:name :dz :default (fn [b] (-> b :x))}
 
            ;; ordered defaults
@@ -81,7 +81,7 @@
           :load {:post #'load-hook}
           :update {:post #'update-hook}}
 
-  :validations [(fn [row] (when false "failing"))]
+  :validations [(fn [_] nil)]
 
   :fn-middleware #'fn-middleware)
 
@@ -176,10 +176,10 @@
 
 
 (fact "apply-defaults works"
-  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} nil) => (just {:x 5 :y 6 :z 9}))
+  (core/apply-defaults [[:x 5] [:y (fn [_] 6)] [:z 10]] {:z 9} nil) => (just {:x 5 :y 6 :z 9}))
 
 (fact "apply-defaults works with only"
-  (core/apply-defaults [[:x 5] [:y (fn [v] 6)] [:z 10]] {:z 9} [:z]) => (just {:z 9}))
+  (core/apply-defaults [[:x 5] [:y (fn [_] 6)] [:z 10]] {:z 9} [:z]) => (just {:z 9}))
 
 
 (fact "default works on creation"

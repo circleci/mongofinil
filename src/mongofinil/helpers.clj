@@ -69,7 +69,7 @@
 
 (defn ensure-object-id
   "Adds a mongo id to m, a clojure map, if it doesn't have one."
-  [coll m]
+  [_coll m]
   {:post [(identity %)]}
   (if (not (has-object-id? m))
     (assoc m :_id (object-id))

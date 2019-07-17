@@ -355,7 +355,7 @@ note:
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
   (->> fn-hooks
-       (map (fn [[crud [& phases]]]
+       (map (fn [[crud [& _phases]]]
               (get-in model-hooks [crud desired-phase])))
        (filter identity)))
 
