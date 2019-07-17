@@ -1,13 +1,14 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
-  (:require [somnium.congomongo :as congo]
-            [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
-            [mongofinil.validation :as mv]
-            [mongofinil.validation-helpers :as mvh]
-            [clj-time.core :as time]
-            [clojure.string :as str])
+  (:require [clojure.string :as str]
 
-  (:use [mongofinil.helpers :only (assert! throw-if-not throw-if ref? throwf eager-map)])
+            [clj-time.core :as time]
+            [somnium.congomongo :as congo]
+            [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
+
+            [mongofinil.helpers :refer (assert! eager-map ref? throw-if throw-if-not throwf)]
+            [mongofinil.validation :as mv]
+            [mongofinil.validation-helpers :as mvh])
   (:import org.bson.types.ObjectId
            (org.joda.time DateTime
                           DateTimeZone)))
@@ -241,7 +242,7 @@ note:
    (ref? id) (coerce-id @id)
    (instance? String id) (do (throw-if (= id "") "Got empty string (\"\"), expected id")
                              (congo/object-id id))
-   (instance? org.bson.types.ObjectId id) id
+   (instance? ObjectId id) id
    (:_id id)  (:_id id)
    :else (throwf "Expected id, got %s" id)))
 
@@ -354,7 +355,7 @@ note:
 
 (defn get-hooks [desired-phase model-hooks fn-hooks]
   (->> fn-hooks
-       (map (fn [[crud [& phases]]]
+       (map (fn [[crud [& _phases]]]
               (get-in model-hooks [crud desired-phase])))
        (filter identity)))
 
@@ -381,8 +382,9 @@ note:
     (call-post-hooks-plural hooks rows)
     (call-post-hooks-singular hooks rows)))
 
-(defn wrap-hooks [f returns-list model-hooks fn-hooks]
+(defn wrap-hooks
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
+  [f returns-list model-hooks fn-hooks]
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
     (fn [& args]
@@ -822,6 +824,3 @@ note:
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords strings profile-reads profile-writes)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords strings profile-reads profile-writes)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)) hooks fn-middleware metrics-fn)))
-
-
-(defn defapi [&args])

@@ -1,5 +1,5 @@
 (ns mongofinil.validation
-  (:use [mongofinil.helpers :only (throw-if-not seq1)]))
+  (:require [mongofinil.helpers :refer (throw-if-not seq1)]))
 
 (defn validate
   "validates an object. validation-seq is a seq of fns. Each fn takes one argument, the object to be validated, and returns nil on success, or a string containing a helpful error message on failure.
@@ -10,10 +10,9 @@
   [validation-seq obj]
   (->>
    (for [v-fn (seq1 validation-seq)]
-     (do
-       (let [resp (v-fn obj)]
-         (throw-if-not (or (nil? resp) (string? resp)) "Validation fn %s, expected nil or string?, got %s" v-fn (class resp))
-         resp)))
+     (let [resp (v-fn obj)]
+       (throw-if-not (or (nil? resp) (string? resp)) "Validation fn %s, expected nil or string?, got %s" v-fn (class resp))
+       resp))
    (filter identity)
    (first)))
 

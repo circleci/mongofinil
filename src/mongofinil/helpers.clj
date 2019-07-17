@@ -1,5 +1,4 @@
 (ns mongofinil.helpers
-  (:use [clojure.tools.logging :only (infof)])
   (:import org.bson.types.ObjectId))
 
 (defn ref?
@@ -70,7 +69,7 @@
 
 (defn ensure-object-id
   "Adds a mongo id to m, a clojure map, if it doesn't have one."
-  [coll m]
+  [_coll m]
   {:post [(identity %)]}
   (if (not (has-object-id? m))
     (assoc m :_id (object-id))
@@ -82,12 +81,3 @@
   (dosync
    (when (not (has-object-id? @m))
      (alter m (constantly (ensure-object-id coll @m))))))
-
-;; (defmacro inspect
-;;   "prints the expression '<name> is <value>', and returns the value"
-;;   [value]
-;;   `(let [value# (quote ~value)
-;;          result# ~value]
-;;      (println value# "is" (with-out-str (clojure.pprint/pprint result#)))
-;;      (infof "%s is %s" value# result#)
-;;      result#))

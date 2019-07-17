@@ -1,6 +1,6 @@
 (ns mongofinil.testing-utils
-  (:use midje.sweet)
-  (:require [somnium.congomongo :as congo]))
+  (:require [midje.sweet :refer (background)]
+            [somnium.congomongo :as congo]))
 
 (def test-db
   {:db :mongofinil_test_db

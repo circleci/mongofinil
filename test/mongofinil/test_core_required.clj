@@ -1,7 +1,8 @@
 (ns mongofinil.test-core-required
-  (:use midje.sweet)
-  (:require [mongofinil.core :as core])
-  (:require [mongofinil.testing-utils :as utils]))
+  (:require [midje.sweet :refer (contains fact future-fact throws)]
+
+            [mongofinil.core :as core]
+            [mongofinil.testing-utils :as utils]))
 
 (utils/setup-test-db)
 (utils/setup-midje)

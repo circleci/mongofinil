@@ -1,5 +1,3 @@
-(ns mongofinil.test-helpers
-  (:use [midje.sweet])
-  (:require [somnium.congomongo :as congo]))
+(ns mongofinil.test-helpers)
 
 ;;; Not helpers for tests, test for helpers
