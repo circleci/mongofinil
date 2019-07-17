@@ -824,6 +824,3 @@ note:
         row-templates (create-row-functions collection validators fields defaults transients use-refs keywords strings profile-reads profile-writes)
         col-templates (apply concat (for [f fields] (create-col-function collection f defaults transients use-refs keywords strings profile-reads profile-writes)))]
     (add-functions *ns* (into [] (concat col-templates row-templates)) hooks fn-middleware metrics-fn)))
-
-
-(defn defapi [&args])
