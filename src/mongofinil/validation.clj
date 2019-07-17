@@ -10,10 +10,9 @@
   [validation-seq obj]
   (->>
    (for [v-fn (seq1 validation-seq)]
-     (do
-       (let [resp (v-fn obj)]
-         (throw-if-not (or (nil? resp) (string? resp)) "Validation fn %s, expected nil or string?, got %s" v-fn (class resp))
-         resp)))
+     (let [resp (v-fn obj)]
+       (throw-if-not (or (nil? resp) (string? resp)) "Validation fn %s, expected nil or string?, got %s" v-fn (class resp))
+       resp))
    (filter identity)
    (first)))
 
