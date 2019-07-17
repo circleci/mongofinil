@@ -449,19 +449,6 @@
     (-> load-hook bond/calls count) => 1
     (-> load-hook bond/calls first :args first) => (contains {:a []})))
 
-(fact "wrap-profile handles clock skew"
-  (core/wrap-profile println 1 "foo" "bar") => anything
-  (let [counter (atom 0)
-        before (time/minus (time/now) (time/seconds 2))
-        after (time/now)
-        stateful-time (fn []
-                        (swap! counter inc)
-                        (if (zero? (mod @counter 2))
-                          before
-                          after))]
-    (with-redefs [time/now stateful-time]
-      ((core/wrap-profile println 1 "foo" "bar")) => anything)))
-
 (fact "wrap-metrics-works"
   (let [metrics (atom [])
         log-metrics-fn (fn [ns name]
