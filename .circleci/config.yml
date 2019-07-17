@@ -27,9 +27,6 @@ workflows:
   test:
     jobs:
       - midje-with-mongo/test:
-          name: "test-mongo-2.4.10"
-          mongo-version: "2.4.10"
-      - midje-with-mongo/test:
           name: "test-mongo-2.6.9"
           mongo-version: "2.6.9"
       - midje-with-mongo/test:
