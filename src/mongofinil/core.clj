@@ -382,8 +382,9 @@ note:
     (call-post-hooks-plural hooks rows)
     (call-post-hooks-singular hooks rows)))
 
-(defn wrap-hooks [f returns-list model-hooks fn-hooks]
+(defn wrap-hooks
   "Calls the appropriate hooks. model-hooks is the hooks defined in the defmodel. fn-hooks is the hooks on the fn definition."
+  [f returns-list model-hooks fn-hooks]
   (let [pre-hooks (get-hooks :pre model-hooks fn-hooks)
         post-hooks (get-hooks :post model-hooks fn-hooks)]
     (fn [& args]
