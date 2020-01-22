@@ -19,7 +19,7 @@
     (equiv [_ o] (.equiv s o))))
 
 (defn throwf [& args]
-  (throw (Exception. (apply format args))))
+  (throw (Exception. ^String (apply format args))))
 
 (defn eager-map [& args]
   (doall (apply map args)))
@@ -47,7 +47,7 @@
   (if id
     (do
       (throw-if-not (string? id) "id must be a string")
-      (ObjectId. id))
+      (ObjectId. ^String id))
     (ObjectId.)))
 
 (defn object-id?

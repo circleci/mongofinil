@@ -7,6 +7,7 @@
  (validate [(require-pred map?)
             (require-keys :type :foo)
             (require-col-pred :foo int?)] m) "
+  ^String
   [validation-seq obj]
   (->>
    (for [v-fn (seq1 validation-seq)]

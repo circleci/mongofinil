@@ -177,7 +177,7 @@ note:
   (clojure->mongo [^DateTime dt]
     (.toDate dt)))
 
-(def utc DateTimeZone/UTC)
+(def ^org.joda.time.DateTimeZone utc DateTimeZone/UTC)
 (assert utc)
 
 (extend-protocol congo-coerce/ConvertibleFromMongo
@@ -202,7 +202,7 @@ note:
     (instance? java.util.List obj) (mapv #(coerce % options) obj)
     (instance? com.mongodb.DBObject obj)
       (coerce-map (for [k (.keySet ^com.mongodb.DBObject obj)]
-                    [k (.get obj k)])
+                    [k (.get ^com.mongodb.DBObject obj k)])
                   options)
     (instance? java.util.Map obj)
       (coerce-map obj options)
@@ -241,7 +241,7 @@ note:
    (nil? id) (throwf "Expected id, got nil")
    (ref? id) (coerce-id @id)
    (instance? String id) (do (throw-if (= id "") "Got empty string (\"\"), expected id")
-                             (congo/object-id id))
+                             (congo/object-id ^String id))
    (instance? ObjectId id) id
    (:_id id)  (:_id id)
    :else (throwf "Expected id, got %s" id)))
@@ -317,7 +317,7 @@ note:
         results
         (first results)))))
 
-(defn str-take [n str]
+(defn str-take [n ^String str]
   (.substring str 0 (min n (count str))))
 
 (defn log-message [x & {:keys [sensitive]}]
