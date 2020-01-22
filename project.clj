@@ -1,4 +1,4 @@
-(defproject circleci/mongofinil "0.2.20"
+(defproject circleci/mongofinil "0.2.21"
   :description "A library for Mongoid-like models"
   :dependencies [[congomongo "1.1.0"]
                  [clj-time "0.14.0"]]
