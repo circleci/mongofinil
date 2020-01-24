@@ -1,8 +1,8 @@
 (ns mongofinil.core
   "A Mongoid-like library that lets you focus on the important stuff"
   (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
 
-            [clj-time.core :as time]
             [somnium.congomongo :as congo]
             [somnium.congomongo.coerce :as congo-coerce :refer [*translations*]]
 
@@ -167,9 +167,9 @@ note:
   "Wrap f to add default output values for the result of f"
   [f]
   (fn [& args]
-    (println "coming in:\n" args)
+    (log/debug "coming in:\n" args)
     (let [results (apply f args)]
-      (println "coming out:\n" results)
+      (log/debug "coming out:\n" results)
       results)))
 
 (extend-protocol congo-coerce/ConvertibleToMongo
@@ -327,21 +327,22 @@ note:
               msg)]
     (str-take 150 msg)))
 
+(defn- time-since
+  [previous-nanotime]
+  (Math/round ^Double (double (/ (- (System/nanoTime) previous-nanotime) 1e6))))
+
 (defn wrap-profile
   [f time-in-millis ns name]
   (fn [& args]
     (if-not time-in-millis
       (apply f args)
-      (let [start (time/now)
+      (let [start (System/nanoTime)
             result (apply f args)
-            stop (time/now)]
-        (when-let [msecs (when (time/before? start stop)
-                           ;; clock skew
-                           (time/in-millis (time/interval start stop)))]
-          (when (>= msecs time-in-millis)
-            (let [sensitive (extract-congo-argument args :sensitive)
-                  msg (log-message args :sensitive sensitive)]
-              (println (format "slow query (%dms): (%s/%s %s)" msecs ns name msg)))))
+            msecs (time-since start)]
+        (when (>= msecs time-in-millis)
+          (let [sensitive (extract-congo-argument args :sensitive)
+                msg (log-message args :sensitive sensitive)]
+            (log/infof "slow query (%dms): (%s/%s %s)" msecs ns name msg)))
         result))))
 
 (defn wrap-metrics

@@ -1,5 +1,8 @@
 (ns mongofinil.test-profiling
-  (:require [midje.sweet :refer (fact)]
+  (:require [clojure.tools.logging :as log]
+
+            [bond.james :as bond]
+            [midje.sweet :refer (fact)]
 
             [mongofinil.core :as core]
             [mongofinil.testing-utils :as utils]))
@@ -10,7 +13,9 @@
 (core/defmodel :xs :fields [] :profile-reads 0 :profile-writes 5)
 
 (fact "slow operations warn"
-  (let [warning (with-out-str (create! {:val "abc" :x (into [] (range 50000))}))]
+  (let [warning (bond/with-spy [log/log*]
+                  (create! {:val "abc" :x (into [] (range 50000))})
+                  (->> log/log* bond/calls first :args last))]
     warning => #"slow query \(\d+ms\):"
     warning => #"mongofinil.test-profiling/create!"))
 
