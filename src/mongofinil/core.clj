@@ -616,7 +616,7 @@ note:
                                    new (assert! (congo/fetch-and-modify collection
                                                                         {:_id (coerce-id old)}
                                                                         {:$unset field-map}
-                                                                        :return-new? false
+                                                                        :return-new? true
                                                                         :upsert? false)
                                                 "Expected result, got nil")]
                                (apply dissoc old removed-fields)))
